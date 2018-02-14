@@ -1,0 +1,46 @@
+AllCops:
+  TargetRubyVersion: 2.3
+  DisplayCopNames: true
+
+
+## Layout ######################################################################
+
+Layout/DotPosition:
+  EnforcedStyle: trailing
+
+Layout/IndentArray:
+  EnforcedStyle: consistent
+
+Layout/IndentHash:
+  EnforcedStyle: consistent
+
+
+## Metrics #####################################################################
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+
+
+## Style #######################################################################
+
+Style/BracesAroundHashParameters:
+  Enabled: false
+
+Style/HashSyntax:
+  EnforcedStyle: hash_rockets
+
+Style/RegexpLiteral:
+  EnforcedStyle: percent_r
+
+Style/RescueStandardError:
+  EnforcedStyle: implicit
+
+Style/SafeNavigation:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/YodaCondition:
+  Enabled: false

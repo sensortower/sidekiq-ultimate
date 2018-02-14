@@ -1,0 +1,10 @@
+/Gemfile.lock
+
+/.autoenv.zsh
+/.bundle
+/.yardoc
+/_yardoc
+/coverage
+/doc
+/pkg
+/tmp
