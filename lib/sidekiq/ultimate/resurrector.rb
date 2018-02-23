@@ -3,12 +3,19 @@
 require "redis/lockers"
 require "redis/prescription"
 
+require "sidekiq/ultimate/queue_name"
+
 module Sidekiq
   module Ultimate
     # Lost jobs resurrector.
     module Resurrector
-      LPOPRPUSH = Redis::Prescription.read("#{__dir__}/lpoprpush.lua")
-      private_constant :LPOPRPUSH
+      RESURRECT = Redis::Prescription.read \
+        "#{__dir__}/resurrector/resurrect.lua"
+      private_constant :RESURRECT
+
+      SAFECLEAN = Redis::Prescription.read \
+        "#{__dir__}/resurrector/safeclean.lua"
+      private_constant :SAFECLEAN
 
       MAIN_KEY = "ultimate:resurrector"
       private_constant :MAIN_KEY
@@ -18,30 +25,36 @@ module Sidekiq
 
       class << self
         def setup!
-          ctulhu = Concurrent::TimerTask.new(:execution_interval => 5) do
-            resurrect!
-          end
+          ctulhu = nil
 
           Sidekiq.on(:startup) do
-            register_process!
-            ctulhu.execute
+            defibrillate!
+
+            ctulhu = Concurrent::TimerTask.execute(:run_now => true) do
+              resurrect!
+            end
           end
 
-          Sidekiq.on(:shutdown) { ctulhu.shutdown }
+          Sidekiq.on(:shutdown) { ctulhu&.shutdown }
+
+          Sidekiq.on(:heartbeat) { defibrillate! }
         end
 
         def resurrect!
           lock do
             casualties.each do |identity|
-              queues(identity).each { |queue| resurrect(queue) }
-              cleanup(identity)
+              queues = queues_of(identity).each { |queue| resurrect(queue) }
+              cleanup(identity, queues.map(&:inproc))
             end
           end
+        rescue => e
+          Sidekiq.logger.error("#{self}.resurrect! failed: #{e}")
+          raise
         end
 
         private
 
-        def register_process!
+        def defibrillate!
           Sidekiq.redis do |redis|
             queues   = JSON.dump(Sidekiq.options[:queues].uniq)
             identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
@@ -68,7 +81,7 @@ module Sidekiq
           end
         end
 
-        def queues(identity)
+        def queues_of(identity)
           Sidekiq.redis do |redis|
             queues = redis.hget(MAIN_KEY, identity)
 
@@ -82,16 +95,17 @@ module Sidekiq
 
         def resurrect(queue)
           Sidekiq.redis do |redis|
-            kwargs = { :keys => [queue.inproc, queue.pending] }
-            count  = 0
-
-            count += 1 while LPOPRPUSH.eval(redis, **kwargs)
-            redis.del(queue.inproc)
+            RESURRECT.eval(redis, :keys => [queue.inproc, queue.pending])
           end
         end
 
-        def cleanup(identity)
-          Sidekiq.redis { |redis| redis.hdel(MAIN_KEY, identity) }
+        def cleanup(identity, inprocs)
+          Sidekiq.redis do |redis|
+            SAFECLEAN.eval(redis, {
+              :keys => [MAIN_KEY, *inprocs],
+              :argv => [identity]
+            })
+          end
         end
       end
     end
