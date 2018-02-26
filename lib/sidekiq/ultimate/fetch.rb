@@ -16,7 +16,7 @@ module Sidekiq
       TIMEOUT = 2
 
       def initialize(options)
-        @exhausted = ExpirableList.new(10 * TIMEOUT)
+        @exhausted = ExpirableList.new(2 * TIMEOUT)
 
         @strict = options[:strict] ? true : false
         @queues = options[:queues].map { |name| QueueName.new(name) }
