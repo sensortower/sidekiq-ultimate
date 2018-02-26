@@ -1,12 +1,8 @@
-local src = KEYS[1]
-local dst = KEYS[2]
-local val = nil
-
 while true do
-  val = redis.call("LPOP", src)
+  local val = redis.call("LPOP", KEYS[1])
 
   if val then
-    redis.call("RPUSH", dst, val)
+    redis.call("RPUSH", KEYS[2], val)
   else
     return
   end
