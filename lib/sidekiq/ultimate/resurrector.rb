@@ -24,21 +24,29 @@ module Sidekiq
       private_constant :LOCK_KEY
 
       class << self
+        # rubocop: disable Metrics/MethodLength
         def setup!
-          ctulhu = nil
+          ctulhu    = nil
+          monitor   = nil
+
+          @identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
 
           Sidekiq.on(:startup) do
-            defibrillate!
-
-            ctulhu = Concurrent::TimerTask.execute(:run_now => true) do
-              resurrect!
-            end
+            options = { :run_now => true, :execution_interval => 60 }
+            ctulhu  = Concurrent::TimerTask.execute(options) { resurrect! }
           end
 
-          Sidekiq.on(:shutdown) { ctulhu&.shutdown }
+          Sidekiq.on(:heartbeat) do
+            options = { :run_now => true, :execution_interval => 5 }
+            monitor = Concurrent::TimerTask.execute(options) { defibrillate! }
+          end
 
-          Sidekiq.on(:heartbeat) { defibrillate! }
+          Sidekiq.on(:shutdown) do
+            monitor&.shutdown
+            ctulhu&.shutdown
+          end
         end
+        # rubocop: enable Metrics/MethodLength
 
         def resurrect!
           lock do
@@ -56,10 +64,8 @@ module Sidekiq
 
         def defibrillate!
           Sidekiq.redis do |redis|
-            queues   = JSON.dump(Sidekiq.options[:queues].uniq)
-            identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
-
-            redis.hset(MAIN_KEY, identity, queues)
+            queues = JSON.dump(Sidekiq.options[:queues].uniq)
+            redis.hset(MAIN_KEY, @identity, queues)
           end
         end
 
