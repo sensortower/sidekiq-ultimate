@@ -61,7 +61,7 @@ module Sidekiq
       # @return [void]
       def requeue_throttled
         Sidekiq.redis do |redis|
-          redis.pipeline do
+          redis.pipelined do
             redis.lpush(@queue.pending, @job)
             acknowledge
           end
