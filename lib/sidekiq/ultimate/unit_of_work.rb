@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "redis/prescription"
+
 require "sidekiq/throttled"
 
 module Sidekiq
@@ -8,6 +10,10 @@ module Sidekiq
     #
     # @private
     class UnitOfWork
+      REQUEUE = Redis::Prescription.read \
+        "#{__dir__}/unit_of_work/requeue.lua"
+      private_constant :REQUEUE
+
       # JSON payload
       #
       # @return [String]
@@ -49,7 +55,7 @@ module Sidekiq
       #
       # @return [void]
       def requeue
-        # do nothing
+        __requeue__("RPUSH")
       end
 
       # Pushes job back to the head of the queue, so that job won't be tried
@@ -60,12 +66,7 @@ module Sidekiq
       #
       # @return [void]
       def requeue_throttled
-        Sidekiq.redis do |redis|
-          redis.pipelined do
-            redis.lpush(@queue.pending, @job)
-            acknowledge
-          end
-        end
+        __requeue__("LPUSH")
       end
 
       # Tells whenever job should be pushed back to queue (throttled) or not.
@@ -74,6 +75,17 @@ module Sidekiq
       # @return [Boolean]
       def throttled?
         Sidekiq::Throttled.throttled?(@job)
+      end
+
+      private
+
+      def __requeue__(command)
+        Sidekiq.redis do |redis|
+          REQUEUE.eval(redis, {
+            :keys => [@queue.pending, @queue.inproc],
+            :argv => [command, @job]
+          })
+        end
       end
     end
   end
