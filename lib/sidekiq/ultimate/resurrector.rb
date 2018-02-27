@@ -51,6 +51,8 @@ module Sidekiq
         def resurrect!
           lock do
             casualties.each do |identity|
+              Sidekiq.logger.debug { "[#{self}] Resurrecting #{identity}" }
+
               queues = queues_of(identity).each { |queue| resurrect(queue) }
               cleanup(identity, queues.map(&:inproc))
             end
@@ -101,7 +103,15 @@ module Sidekiq
 
         def resurrect(queue)
           Sidekiq.redis do |redis|
-            RESURRECT.eval(redis, :keys => [queue.inproc, queue.pending])
+            count = RESURRECT.eval(redis, {
+              :keys => [queue.inproc, queue.pending]
+            })
+
+            if count.positive?
+              Sidekiq.logger.info do
+                "[#{self}] Resurrected #{count} jobs of #{queue.inspect}"
+              end
+            end
           end
         end
 
