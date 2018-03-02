@@ -56,18 +56,13 @@ module Sidekiq
       # @yield [element]
       # @return [Enumerator] if no block given
       # @return [ExpirableSet] self if block given
-      def each(&block)
+      def each
         return to_enum __method__ unless block_given?
 
-        elements = []
-
-        # Evict expired elements
         @mon.synchronize do
           horizon = Concurrent.monotonic_time
-          @set.each { |k, v| v < horizon ? @set.delete(k) : (elements << k) }
+          @set.each { |k, v| v < horizon ? @set.delete(k) : yield(k) }
         end
-
-        elements.each(&block)
 
         self
       end
