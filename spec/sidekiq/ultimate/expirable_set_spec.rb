@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "sidekiq/ultimate/expirable_list"
+require "sidekiq/ultimate/expirable_set"
 
-RSpec.describe Sidekiq::Ultimate::ExpirableList do
+RSpec.describe Sidekiq::Ultimate::ExpirableSet do
   subject(:list) { described_class.new ttl }
 
   let(:ttl) { 3 }

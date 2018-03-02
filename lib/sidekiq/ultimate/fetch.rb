@@ -2,7 +2,7 @@
 
 require "sidekiq/throttled"
 
-require "sidekiq/ultimate/expirable_list"
+require "sidekiq/ultimate/expirable_set"
 require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector"
 require "sidekiq/ultimate/unit_of_work"
@@ -16,7 +16,7 @@ module Sidekiq
       TIMEOUT = 2
 
       def initialize(options)
-        @exhausted = ExpirableList.new(2 * TIMEOUT)
+        @exhausted = ExpirableSet.new(2 * TIMEOUT)
 
         @strict = options[:strict] ? true : false
         @queues = options[:queues].map { |name| QueueName.new(name) }

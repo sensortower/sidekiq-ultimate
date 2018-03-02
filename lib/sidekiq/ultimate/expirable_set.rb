@@ -29,24 +29,24 @@ module Sidekiq
     # @see https://linux.die.net/man/3/clock_gettime
     #
     # @private
-    class ExpirableList
+    class ExpirableSet
       include Enumerable
 
-      # Create a new ExpirableList instance.
+      # Create a new ExpirableSet instance.
       #
       # @param ttl [Float] elements time-to-live in seconds
       def initialize(ttl)
         @ttl = ttl.to_f
-        @arr = []
+        @set = {}
         @mon = Monitor.new
       end
 
-      # Pushes given element into the list.
+      # Pushes given element into the set.
       #
       # @params element [Object]
-      # @return [ExpirableList] self
+      # @return [ExpirableSet] self
       def <<(element)
-        @mon.synchronize { @arr << [Concurrent.monotonic_time, element] }
+        @mon.synchronize { @set[element] = Concurrent.monotonic_time + @ttl }
         self
       end
 
@@ -55,17 +55,19 @@ module Sidekiq
       #
       # @yield [element]
       # @return [Enumerator] if no block given
-      # @return [ExpirableList] self if block given
-      def each
+      # @return [ExpirableSet] self if block given
+      def each(&block)
         return to_enum __method__ unless block_given?
+
+        elements = []
 
         # Evict expired elements
         @mon.synchronize do
-          horizon = Concurrent.monotonic_time - @ttl
-          @arr.shift while @arr[0] && @arr[0][0] < horizon
+          horizon = Concurrent.monotonic_time
+          @set.each { |k, v| v < horizon ? @set.delete(k) : (elements << k) }
         end
 
-        @arr.dup.each { |element| yield element[1] }
+        elements.each(&block)
 
         self
       end
