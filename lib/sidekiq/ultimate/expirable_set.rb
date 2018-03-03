@@ -33,20 +33,28 @@ module Sidekiq
       include Enumerable
 
       # Create a new ExpirableSet instance.
-      #
-      # @param ttl [Float] elements time-to-live in seconds
-      def initialize(ttl)
-        @ttl = ttl.to_f
+      def initialize
         @set = {}
         @mon = Monitor.new
       end
 
-      # Pushes given element into the set.
+      alias to_ary to_a
+
+      # Adds given element into the set.
       #
       # @params element [Object]
+      # @param ttl [Numeric] elements time-to-live in seconds
       # @return [ExpirableSet] self
-      def <<(element)
-        @mon.synchronize { @set[element] = Concurrent.monotonic_time + @ttl }
+      def add(element, ttl:)
+        @mon.synchronize do
+          expires_at = Concurrent.monotonic_time + ttl
+
+          # do not allow decrease element's expiry
+          break if @set[element] && @set[element] >= expires_at
+
+          @set[element] = expires_at
+        end
+
         self
       end
 

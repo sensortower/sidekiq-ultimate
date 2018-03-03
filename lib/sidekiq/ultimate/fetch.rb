@@ -11,12 +11,15 @@ module Sidekiq
   module Ultimate
     # Throttled reliable fetcher implementing reliable queue pattern.
     class Fetch
-      # Timeout to sleep between fetch retries in case of no job received,
-      # as well as timeout to wait for redis to give us something to work.
+      # Timeout to sleep between fetch retries in case of no job received.
       TIMEOUT = 2
 
+      # Timeout to sleep between queue fetch attempts in case if last job
+      # of it was throttled.
+      THROTTLE_TIMEOUT = 10
+
       def initialize(options)
-        @exhausted = ExpirableSet.new(2 * TIMEOUT)
+        @exhausted = ExpirableSet.new
 
         @strict = options[:strict] ? true : false
         @queues = options[:queues].map { |name| QueueName.new(name) }
@@ -31,7 +34,7 @@ module Sidekiq
         return work unless work.throttled?
 
         work.requeue_throttled
-        @exhausted << work.queue
+        @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
       end
 
       def self.bulk_requeue(*)
@@ -51,7 +54,7 @@ module Sidekiq
             job = redis.rpoplpush(queue.pending, queue.inproc)
             return UnitOfWork.new(queue, job) if job
 
-            @exhausted << queue
+            @exhausted.add(queue, :ttl => TIMEOUT)
           end
         end
 
