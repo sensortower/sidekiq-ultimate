@@ -105,22 +105,24 @@ module Sidekiq
 
         def resurrect(queue)
           Sidekiq.redis do |redis|
-            count = RESURRECT.eval(redis, {
+            result = RESURRECT.eval(redis, {
               :keys => [queue.inproc, queue.pending]
             })
 
-            if count.positive?
-              log(:info) { "Resurrected #{count} jobs from #{queue.inproc}" }
+            if result.positive?
+              log(:info) { "Resurrected #{result} jobs from #{queue.inproc}" }
             end
           end
         end
 
         def cleanup(identity, inprocs)
           Sidekiq.redis do |redis|
-            SAFECLEAN.eval(redis, {
+            result = SAFECLEAN.eval(redis, {
               :keys => [MAIN_KEY, *inprocs],
               :argv => [identity]
             })
+
+            log(:debug) { "Safeclean of #{identity} ok=#{1 == result}" }
           end
         end
 

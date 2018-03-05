@@ -12,4 +12,7 @@ end
 
 if rip then
   redis.call("HDEL", KEYS[1], ARGV[1])
+  return 1
 end
+
+return nil
