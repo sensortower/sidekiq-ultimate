@@ -51,14 +51,14 @@ module Sidekiq
         def resurrect!
           lock do
             casualties.each do |identity|
-              Sidekiq.logger.debug { "[#{self}] Resurrecting #{identity}" }
+              log(:debug) { "Resurrecting #{identity}" }
 
               queues = queues_of(identity).each { |queue| resurrect(queue) }
               cleanup(identity, queues.map(&:inproc))
             end
           end
         rescue => e
-          Sidekiq.logger.error("#{self}.resurrect! failed: #{e}")
+          log(:error) { "Resurrection failed: #{e}" }
           raise
         end
 
@@ -66,6 +66,8 @@ module Sidekiq
 
         def defibrillate!
           Sidekiq.redis do |redis|
+            log(:debug) { "Defibrillating" }
+
             queues = JSON.dump(Sidekiq.options[:queues].uniq)
             redis.hset(MAIN_KEY, @identity, queues)
           end
@@ -108,9 +110,7 @@ module Sidekiq
             })
 
             if count.positive?
-              Sidekiq.logger.info do
-                "[#{self}] Resurrected #{count} jobs of #{queue.inspect}"
-              end
+              log(:info) { "Resurrected #{count} jobs from #{queue.inproc}" }
             end
           end
         end
@@ -121,6 +121,12 @@ module Sidekiq
               :keys => [MAIN_KEY, *inprocs],
               :argv => [identity]
             })
+          end
+        end
+
+        def log(level)
+          Sidekiq.logger.public_send(level) do
+            "[#{self}] @#{@identity} #{yield}"
           end
         end
       end
