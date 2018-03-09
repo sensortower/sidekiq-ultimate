@@ -34,11 +34,12 @@ module Sidekiq
         return work unless work.throttled?
 
         work.requeue_throttled
+
         @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
       end
 
-      def self.bulk_requeue(*)
-        # do nothing
+      def self.bulk_requeue(units, _options)
+        units.each(&:requeue)
       end
 
       def self.setup!
