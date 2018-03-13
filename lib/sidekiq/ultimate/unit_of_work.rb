@@ -22,8 +22,9 @@ module Sidekiq
       # @param [QueueName] queue where job was pulled from
       # @param [String] job JSON payload
       def initialize(queue, job)
-        @queue = queue
-        @job   = job
+        @queue    = queue
+        @job      = job
+        @requeued = false
       end
 
       # Pending jobs queue key name.
@@ -80,11 +81,15 @@ module Sidekiq
       private
 
       def __requeue__(command)
+        return if @requeued
+
         Sidekiq.redis do |redis|
           REQUEUE.eval(redis, {
             :keys => [@queue.pending, @queue.inproc],
             :argv => [command, @job]
           })
+
+          @requeued = true
         end
       end
     end
