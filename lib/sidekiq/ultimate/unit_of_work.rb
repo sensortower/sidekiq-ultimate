@@ -24,6 +24,7 @@ module Sidekiq
       def initialize(queue, job)
         @queue    = queue
         @job      = job
+        @mutex    = Mutex.new
         @requeued = false
       end
 
@@ -81,13 +82,15 @@ module Sidekiq
       private
 
       def __requeue__(command)
-        return if @requeued
+        @mutex.synchronize do
+          return if @requeued
 
-        Sidekiq.redis do |redis|
-          REQUEUE.eval(redis, {
-            :keys => [@queue.pending, @queue.inproc],
-            :argv => [command, @job]
-          })
+          Sidekiq.redis do |redis|
+            REQUEUE.eval(redis, {
+              :keys => [@queue.pending, @queue.inproc],
+              :argv => [command, @job]
+            })
+          end
 
           @requeued = true
         end
