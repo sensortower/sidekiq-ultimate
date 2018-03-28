@@ -24,29 +24,12 @@ module Sidekiq
       private_constant :LOCK_KEY
 
       class << self
-        # rubocop: disable Metrics/MethodLength
         def setup!
-          ctulhu    = nil
-          monitor   = nil
-
           @identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
 
-          Sidekiq.on(:startup) do
-            options = { :run_now => true, :execution_interval => 60 }
-            ctulhu  = Concurrent::TimerTask.execute(options) { resurrect! }
-          end
-
-          Sidekiq.on(:heartbeat) do
-            options = { :run_now => true, :execution_interval => 5 }
-            monitor = Concurrent::TimerTask.execute(options) { defibrillate! }
-          end
-
-          Sidekiq.on(:shutdown) do
-            monitor&.shutdown
-            ctulhu&.shutdown
-          end
+          register_aed!
+          call_cthulhu!
         end
-        # rubocop: enable Metrics/MethodLength
 
         def resurrect!
           lock do
@@ -63,6 +46,36 @@ module Sidekiq
         end
 
         private
+
+        def call_cthulhu!
+          cthulhu = nil
+
+          Sidekiq.on(:startup) do
+            cthulhu&.shutdown
+
+            cthulhu = Concurrent::TimerTask.execute({
+              :run_now            => true,
+              :execution_interval => 60
+            }) { resurrect! }
+          end
+
+          Sidekiq.on(:shutdown) { cthulhu&.shutdown }
+        end
+
+        def register_aed!
+          aed = nil
+
+          Sidekiq.on(:heartbeat) do
+            aed&.shutdown
+
+            aed = Concurrent::TimerTask.execute({
+              :run_now            => true,
+              :execution_interval => 5
+            }) { defibrillate! }
+          end
+
+          Sidekiq.on(:shutdown) { aed&.shutdown }
+        end
 
         def defibrillate!
           Sidekiq.redis do |redis|
