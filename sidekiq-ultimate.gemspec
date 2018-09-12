@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-lib = File.expand_path("../lib", __FILE__)
+lib = File.expand_path("lib", __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 require "sidekiq/ultimate/version"
@@ -12,8 +12,6 @@ Gem::Specification.new do |spec|
   spec.email         = ["ixti@member.fsf.org"]
 
   spec.summary       = "Sidekiq ultimate experience."
-  spec.description   = "Sidekiq ultimate experience."
-
   spec.homepage      = "https://github.com/sensortower/sidekiq-ultimate"
   spec.license       = "MIT"
 
@@ -31,7 +29,7 @@ Gem::Specification.new do |spec|
 
   # temporary couple this with sidekiq-throttled until it will be merged into
   # this gem instead.
-  spec.add_runtime_dependency "sidekiq-throttled", "~> 0.8.2"
+  spec.add_runtime_dependency "sidekiq-throttled",  "~> 0.8"
 
   spec.add_development_dependency "bundler", "~> 1.16"
 
