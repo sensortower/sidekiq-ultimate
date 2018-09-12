@@ -25,6 +25,7 @@ module Sidekiq
         @queue    = queue
         @job      = job
         @mutex    = Mutex.new
+        @acked    = false
         @requeued = false
       end
 
@@ -49,7 +50,15 @@ module Sidekiq
       #
       # @return [void]
       def acknowledge
-        Sidekiq.redis { |redis| redis.lrem(@queue.inproc, -1, @job) }
+        @mutex.synchronize do
+          return if @requeued || @acked
+
+          Sidekiq.redis do |redis|
+            redis.lrem(@queue.inproc, -1, @job)
+          end
+
+          @acked = true
+        end
       end
 
       # We gonna resurrect jobs that were inside inproc queue upon process
@@ -83,7 +92,7 @@ module Sidekiq
 
       def __requeue__(command)
         @mutex.synchronize do
-          return if @requeued
+          return if @requeued || @acked
 
           Sidekiq.redis do |redis|
             REQUEUE.eval(redis, {
