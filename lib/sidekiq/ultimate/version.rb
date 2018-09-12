@@ -3,6 +3,6 @@
 module Sidekiq
   module Ultimate
     # Gem version.
-    VERSION = "0.0.1.alpha.11"
+    VERSION = "0.0.1.alpha.12"
   end
 end
