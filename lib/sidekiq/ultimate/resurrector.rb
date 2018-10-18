@@ -23,6 +23,9 @@ module Sidekiq
       LOCK_KEY = "#{MAIN_KEY}:lock"
       private_constant :LOCK_KEY
 
+      LAST_RUN_KEY = "#{MAIN_KEY}:last_run"
+      private_constant :LAST_RUN_KEY
+
       class << self
         def setup!
           @identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
@@ -86,9 +89,18 @@ module Sidekiq
           end
         end
 
-        def lock(&block)
+        def lock
           Sidekiq.redis do |redis|
-            Redis::Lockers.acquire(redis, LOCK_KEY, :ttl => 30_000, &block)
+            Redis::Lockers.acquire(redis, LOCK_KEY, :ttl => 30_000) do
+              results  = redis.pipelined { |r| [r.time, r.get(LAST_RUN_KEY)] }
+              distance = results[0][0] - results[1].to_i
+
+              return unless 60 < distance
+
+              yield
+
+              redis.set(LAST_RUN_KEY, redis.time.first)
+            end
           end
         end
 
