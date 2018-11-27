@@ -111,7 +111,7 @@ module Sidekiq
       # @param kwargs (see #initialize for details on possible options)
       # @return [QueueName]
       def self.[](name, **kwargs)
-        new(name.to_s.sub(QUEUE_PREFIX_RE, ""), **kwargs)
+        new(name.to_s.sub(QUEUE_PREFIX_RE, "").freeze, **kwargs)
       end
 
       def self.process_identity
