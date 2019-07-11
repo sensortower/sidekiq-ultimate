@@ -30,12 +30,13 @@ module Sidekiq
       def retrieve_work
         work = retrieve
 
-        return unless work
-        return work unless work.throttled?
+        if work&.throttled?
+          work.requeue_throttled
+          @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
+          return nil
+        end
 
-        work.requeue_throttled
-
-        @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
+        work
       end
 
       def self.bulk_requeue(units, _options)
@@ -64,11 +65,10 @@ module Sidekiq
       end
 
       def queues
-        (@strict ? @queues : @queues.shuffle.uniq) - exhausted - paused_queues
-      end
+        queues = (@strict ? @queues : @queues.shuffle.uniq) - @exhausted.to_a
+        return queues if queues.empty?
 
-      def exhausted
-        @exhausted.to_a
+        queues - paused_queues
       end
 
       def paused_queues

@@ -32,7 +32,7 @@ module Sidekiq
       # @param normalized [#to_s] Normalized (without any namespaces or `queue:`
       #   prefixes) queue name.
       # @param identity [#to_s] Sidekiq process identity.
-      def initialize(normalized, identity: self.class.process_identity)
+      def initialize(normalized, identity: Helper.identity)
         @normalized = -normalized.to_s
         @identity   = -identity.to_s
       end
@@ -112,10 +112,6 @@ module Sidekiq
       # @return [QueueName]
       def self.[](name, **kwargs)
         new(name.to_s.sub(QUEUE_PREFIX_RE, "").freeze, **kwargs)
-      end
-
-      def self.process_identity
-        Helper.identity
       end
     end
   end
