@@ -4,6 +4,8 @@ require "monitor"
 
 require "concurrent/utility/monotonic_time"
 
+require "sidekiq/ultimate/debugging"
+
 module Sidekiq
   module Ultimate
     # List that tracks when elements were added and enumerates over those not
@@ -31,6 +33,7 @@ module Sidekiq
     # @private
     class ExpirableSet
       include Enumerable
+      include Debugging
 
       # Create a new ExpirableSet instance.
       def initialize
@@ -50,9 +53,15 @@ module Sidekiq
           expires_at = Concurrent.monotonic_time + ttl
 
           # do not allow decrease element's expiry
-          break if @set[element] && @set[element] >= expires_at
-
-          @set[element] = expires_at
+          if @set[element] && @set[element] >= expires_at
+            debug! do
+              "#{element}'s expiry kept as is: #{@set[element]}; " \
+                "proposed expiry was: #{expires_at}"
+            end
+          else
+            @set[element] = expires_at
+            debug! { "#{element}'s expiry set to: #{expires_at}" }
+          end
         end
 
         self
@@ -69,6 +78,9 @@ module Sidekiq
 
         @mon.synchronize do
           horizon = Concurrent.monotonic_time
+
+          debug! { "Yielding elements above #{horizon} horizon" }
+
           @set.each { |k, v| v < horizon ? @set.delete(k) : yield(k) }
         end
 
