@@ -6,7 +6,6 @@ module Sidekiq
       private
 
       def debug!
-        return unless ENV.key? "DEBUG_SIDEKIQ_ULTIMATE"
         Sidekiq.logger.debug { "[#{self.class}] #{yield}" }
       end
     end
