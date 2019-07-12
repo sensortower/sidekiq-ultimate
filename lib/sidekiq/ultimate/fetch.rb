@@ -38,7 +38,7 @@ module Sidekiq
         if work&.throttled?
           work.requeue_throttled
 
-          debug! { "Queue #{queue} got throttled job." }
+          debug! { "Queue #{work.queue} got throttled job." }
           @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
 
           return nil
