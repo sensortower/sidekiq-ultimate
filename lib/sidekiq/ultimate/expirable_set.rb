@@ -34,7 +34,7 @@ module Sidekiq
 
       # Create a new ExpirableSet instance.
       def initialize
-        @set = {}
+        @set = Hash.new(0.0)
         @mon = Monitor.new
       end
 
@@ -55,9 +55,7 @@ module Sidekiq
           expires_at = Concurrent.monotonic_time + ttl
 
           # do not allow decrease element's expiry
-          break if @set.key?(element) && expires_at <= @set[element]
-
-          @set[element] = expires_at
+          @set[element] = expires_at if @set[element] < expires_at
         end
 
         self

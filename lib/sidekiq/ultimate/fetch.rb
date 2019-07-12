@@ -23,7 +23,6 @@ module Sidekiq
       def initialize(options)
         @exhausted = ExpirableSet.new
 
-        @debug  = ENV["DEBUG_SIDEKIQ_ULTIMATE"] ? {} : nil
         @strict = options[:strict] ? true : false
         @queues = options[:queues].map { |name| QueueName.new(name) }
 
@@ -37,7 +36,8 @@ module Sidekiq
         if work&.throttled?
           work.requeue_throttled
 
-          @exhausted.add(work.queue, :ttl => THROTTLE_TIMEOUT)
+          queue = QueueName.new(work.queue_name)
+          @exhausted.add(queue, :ttl => THROTTLE_TIMEOUT)
 
           return nil
         end
@@ -59,8 +59,6 @@ module Sidekiq
       def retrieve
         Sidekiq.redis do |redis|
           queues.each do |queue|
-            debug!(queue)
-
             job = redis.rpoplpush(queue.pending, queue.inproc)
             return UnitOfWork.new(queue, job) if job
 
@@ -85,18 +83,6 @@ module Sidekiq
         Sidekiq::Throttled::QueuesPauser.instance.
           instance_variable_get(:@paused_queues).
           map { |q| QueueName[q] }
-      end
-
-      def debug!(queue)
-        return unless @debug
-
-        previous, @debug[queue] = @debug[queue], Concurrent.monotonic_time
-
-        return unless previous
-
-        Sidekiq.logger.debug do
-          "Queue #{queue} last time polled: #{@debug[queue] - previous} s ago"
-        end
       end
     end
   end
