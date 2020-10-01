@@ -31,7 +31,7 @@ Gem::Specification.new do |spec|
   # this gem instead.
   spec.add_runtime_dependency "sidekiq-throttled",  "~> 0.8"
 
-  spec.add_development_dependency "bundler", "~> 1.16"
+  spec.add_development_dependency "bundler", "~> 2.0"
 
   spec.required_ruby_version = "~> 2.3"
 end
