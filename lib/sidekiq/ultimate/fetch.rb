@@ -85,7 +85,7 @@ module Sidekiq
       def paused_queues
         return @paused_queues if Time.now.to_i < @paused_queues_expires_at
 
-        @paused_queues.replace(Sidekiq::Throttled::QueuesPauser.instance.paused_queues.map { |q| QueueName[q] })
+        @paused_queues = Sidekiq::Throttled::QueuesPauser.instance.paused_queues.map { |q| QueueName[q] }.freeze
         @paused_queues_expires_at = Time.now.to_i + 60
 
         @paused_queues
