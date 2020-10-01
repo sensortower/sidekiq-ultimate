@@ -27,6 +27,9 @@ module Sidekiq
         @queues = options[:queues].map { |name| QueueName.new(name) }
 
         @queues.uniq! if @strict
+
+        @paused_queues            = []
+        @paused_queues_expires_at = 0
       end
 
       # @return [UnitOfWork] if work can be processed
@@ -80,9 +83,12 @@ module Sidekiq
       end
 
       def paused_queues
-        Sidekiq::Throttled::QueuesPauser.instance.
-          instance_variable_get(:@paused_queues).
-          map { |q| QueueName[q] }
+        return @paused_queues if Time.now.to_i < @paused_queues_expires_at
+
+        @paused_queues.replace(Sidekiq::Throttled::QueuesPauser.instance.paused_queues.map { |q| QueueName[q] })
+        @paused_queues_expires_at = Time.now.to_i + 60
+
+        @paused_queues
       end
     end
   end
