@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "redis/prescription"
+require "concurrent/timer_task"
 
 require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector/lock"
@@ -16,6 +17,9 @@ module Sidekiq
 
       SAFECLEAN = Redis::Prescription.read("#{__dir__}/resurrector/safeclean.lua")
       private_constant :SAFECLEAN
+
+      DEFIBRILLATE_INTERVAL = 5
+      private_constant :DEFIBRILLATE_INTERVAL
 
       class << self
         def setup!
@@ -53,7 +57,7 @@ module Sidekiq
 
             cthulhu = Concurrent::TimerTask.execute({
               :run_now            => true,
-              :execution_interval => 60
+              :execution_interval => CommonConstants::RESURRECTOR_INTERVAL
             }) { resurrect! }
           end
 
@@ -68,7 +72,7 @@ module Sidekiq
 
             aed = Concurrent::TimerTask.execute({
               :run_now            => true,
-              :execution_interval => 5
+              :execution_interval => DEFIBRILLATE_INTERVAL
             }) { defibrillate! }
           end
 

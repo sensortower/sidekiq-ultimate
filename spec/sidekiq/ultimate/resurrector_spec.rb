@@ -3,16 +3,21 @@
 require "sidekiq/ultimate/resurrector"
 
 RSpec.describe Sidekiq::Ultimate::Resurrector do
+  let(:identity) { "hostname:pid:123456" }
+  let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Util } }
+
+  before do
+    allow(described_class).to receive(:current_process_identity).and_return(identity)
+  end
+
   describe ".resurrect!" do
     subject(:resurrect!) { described_class.resurrect! }
 
-    let(:identity) { "hostname:pid:123456" }
     let(:identity1) { "hostname1:pid:123456" }
     let(:identity2) { "hostname2:pid:123456" }
     let(:logger) { instance_spy(Logger) }
 
     before do
-      allow(described_class).to receive(:current_process_identity).and_return(identity)
       allow(described_class::Lock).to receive(:acquire).and_yield
 
       allow(Sidekiq).to receive(:logger).and_return(logger)
@@ -54,6 +59,40 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         jobs_in_queue = Sidekiq.redis { |redis| redis.lrange("queue:queue2", 0, -1) }
         expect(jobs_in_queue).to match_array(%w[sidekiq_job_hash1 sidekiq_job_hash2 sidekiq_job_hash3])
       end
+    end
+  end
+
+  describe "setup!" do
+    it "periodically puts current process queues into redis", :redis => true do
+      stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
+      allow(Sidekiq).to receive(:options).and_return(Sidekiq.options.merge(:queues => %w[queue1 queue2]))
+
+      described_class.setup!
+
+      sidekiq_util.fire_event(:heartbeat)
+
+      sleep(1) # Wait for the timer task to run
+
+      keys = Sidekiq.redis { |redis| redis.hgetall("ultimate:resurrector") }
+      expect(keys).to eq({ identity => "[\"queue1\",\"queue2\"]" })
+
+      ObjectSpace.each_object(Concurrent::TimerTask).each(&:shutdown)
+    end
+
+    it "unregisters aed on sidekiq shutdown" do
+      stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
+      described_class.setup!
+
+      sidekiq_util.fire_event(:heartbeat)
+
+      expect { sidekiq_util.fire_event(:shutdown) }.
+        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(1).to(0)
+
+      Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
+      sleep(1) # Wait for any other timer to run
+
+      resurrector_key = Sidekiq.redis { |redis| redis.exists?("ultimate:resurrector") }
+      expect(resurrector_key).to be_falsy
     end
   end
 end

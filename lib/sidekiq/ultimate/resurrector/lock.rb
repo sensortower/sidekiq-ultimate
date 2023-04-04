@@ -24,7 +24,7 @@ module Sidekiq
                 results  = redis.pipelined { |r| [r.time, r.get(LAST_RUN_KEY)] }
                 distance = results[0][0] - results[1].to_i
 
-                break unless 60 < distance
+                break unless CommonConstants::RESURRECTOR_INTERVAL < distance
 
                 yield
 

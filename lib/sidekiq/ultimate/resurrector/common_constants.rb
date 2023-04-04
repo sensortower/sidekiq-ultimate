@@ -5,6 +5,8 @@ module Sidekiq
     module Resurrector
       module CommonConstants
         MAIN_KEY = "ultimate:resurrector"
+
+        RESURRECTOR_INTERVAL = 60
       end
     end
   end

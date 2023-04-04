@@ -66,8 +66,7 @@ Thus look up it's README for throttling configuration details.
 
 ## Supported Ruby Versions
 
-This library aims to support and is [tested against][travis-ci] the following
-Ruby and Redis client versions:
+This library aims to support and is tested against the following Ruby and Redis client versions:
 
 * Ruby
   * 2.3.x
@@ -124,7 +123,6 @@ Copyright (c) 2018-23 SensorTower Inc.<br>
 See [LICENSE.md][] for further details.
 
 
-[travis.ci]: http://travis-ci.org/sensortower/sidekiq-ultimate
 [rubygems.org]: https://rubygems.org
 [LICENSE.md]: https://github.com/sensortower/sidekiq-ultimate/blob/master/LICENSE.txt
-[sidekiq-throttled]: http://travis-ci.org/sensortower/sidekiq-throttled
+[sidekiq-throttled]: https://github.com/ixti/sidekiq-throttled-tmp
