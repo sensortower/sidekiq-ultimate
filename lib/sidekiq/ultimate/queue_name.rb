@@ -10,7 +10,7 @@ module Sidekiq
     class QueueName
       # Regexp used to normalize (possibly) expanded queue name, e.g. the one
       # that is returned upon redis BRPOP
-      QUEUE_PREFIX_RE = %r{.*queue:}
+      QUEUE_PREFIX_RE = %r{.*queue:}.freeze
       private_constant :QUEUE_PREFIX_RE
 
       # Internal helper context.

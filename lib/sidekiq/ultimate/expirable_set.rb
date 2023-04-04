@@ -52,7 +52,7 @@ module Sidekiq
       # @return [ExpirableSet] self
       def add(element, ttl:)
         @mon.synchronize do
-          expires_at = Concurrent.monotonic_time + ttl
+          expires_at = Process.clock_gettime(Process::CLOCK_MONOTONIC) + ttl
 
           # do not allow decrease element's expiry
           @set[element] = expires_at if @set[element] < expires_at
@@ -71,7 +71,7 @@ module Sidekiq
         return to_enum __method__ unless block_given?
 
         @mon.synchronize do
-          horizon = Concurrent.monotonic_time
+          horizon = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           @set.each { |k, v| yield(k) if horizon <= v }
         end
 

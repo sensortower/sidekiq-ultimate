@@ -40,6 +40,18 @@ require "sidekiq/ultimate"
 Sidekiq::Ultimate.setup!
 ```
 
+## Configuration
+
+Resurrection events can be additionally logged by providing `on_resurrection` handler:
+
+```ruby
+Sidekiq::Ultimate.setup! do |config|
+  config.on_resurrection = ->(queue_name, jobs_count) do
+    puts "Resurrected #{jobs_count} jobs from #{queue_name}"
+  end
+end
+```
+
 ---
 
 **NOTICE**
@@ -61,6 +73,8 @@ Ruby and Redis client versions:
   * 2.3.x
   * 2.4.x
   * 2.5.x
+  * 2.6.x
+  * 2.7.x
 
 * [redis-rb](https://github.com/redis/redis-rb)
   * 4.x
@@ -106,7 +120,7 @@ push git commits and tags, and push the `.gem` file to [rubygems.org][].
 
 ## Copyright
 
-Copyright (c) 2018 SensorTower Inc.<br>
+Copyright (c) 2018-23 SensorTower Inc.<br>
 See [LICENSE.md][] for further details.
 
 

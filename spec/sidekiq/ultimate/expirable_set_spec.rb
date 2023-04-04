@@ -11,8 +11,8 @@ RSpec.describe Sidekiq::Ultimate::ExpirableSet do
   describe "#each" do
     before do
       5.times do |i|
-        expect(Concurrent).
-          to receive(:monotonic_time).
+        allow(Process).
+          to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).
           and_return(i.to_f)
 
         list.add(i + 1, :ttl => 3)
@@ -25,8 +25,8 @@ RSpec.describe Sidekiq::Ultimate::ExpirableSet do
       it { is_expected.to be_an Enumerator }
 
       it "enumerates over non-expired keys only" do
-        expect(Concurrent).
-          to receive(:monotonic_time).
+        allow(Process).
+          to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).
           and_return(5.0)
 
         expect { |b| enum.each(&b) }.
@@ -35,9 +35,7 @@ RSpec.describe Sidekiq::Ultimate::ExpirableSet do
     end
 
     it "enumerates over non-expired keys only" do
-      expect(Concurrent).
-        to receive(:monotonic_time).
-        and_return(5.0)
+      allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(5.0)
 
       expect { |b| list.each(&b) }.
         to yield_successive_args(3, 4, 5)
@@ -50,9 +48,9 @@ RSpec.describe Sidekiq::Ultimate::ExpirableSet do
       list.add(:b, :ttl => 10)
       list.add(:c, :ttl => 30)
 
-      expect(Concurrent).
-        to receive(:monotonic_time).
-        and_wrap_original(&->(m, *) { m.call + 25 })
+      allow(Process).
+        to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).
+        and_wrap_original(&->(m, *args) { m.call(*args) + 25 })
 
       expect(list.to_a).to match_array(%i[a c])
     end
@@ -61,9 +59,9 @@ RSpec.describe Sidekiq::Ultimate::ExpirableSet do
       list.add(:foo, :ttl => 50)
       list.add(:foo, :ttl => 10)
 
-      expect(Concurrent).
-        to receive(:monotonic_time).
-        and_wrap_original(&->(m, *) { m.call + 25 })
+      allow(Process).
+        to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).
+        and_wrap_original(&->(m, *args) { m.call(*args) + 25 })
 
       expect(list.to_a).to eq([:foo])
     end

@@ -5,7 +5,10 @@ ruby RUBY_VERSION
 
 gem "rake"
 gem "rspec"
-gem "rubocop", "~> 0.52.0", :require => false
+gem "rubocop", :require => false
+gem "rubocop-performance", :require => false
+gem "rubocop-rake", :require => false
+gem "rubocop-rspec", :require => false
 
 group :development do
   gem "guard",         :require => false

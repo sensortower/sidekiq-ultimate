@@ -1,41 +1,32 @@
 # frozen_string_literal: true
 
-require "redis/lockers"
 require "redis/prescription"
 
 require "sidekiq/ultimate/queue_name"
+require "sidekiq/ultimate/resurrector/lock"
+require "sidekiq/ultimate/resurrector/common_constants"
+require "sidekiq/ultimate/configuration"
 
 module Sidekiq
   module Ultimate
-    # Lost jobs resurrector.
+    # Lost jobs checker and resurrector
     module Resurrector
-      RESURRECT = Redis::Prescription.read \
-        "#{__dir__}/resurrector/resurrect.lua"
+      RESURRECT = Redis::Prescription.read("#{__dir__}/resurrector/resurrect.lua")
       private_constant :RESURRECT
 
-      SAFECLEAN = Redis::Prescription.read \
-        "#{__dir__}/resurrector/safeclean.lua"
+      SAFECLEAN = Redis::Prescription.read("#{__dir__}/resurrector/safeclean.lua")
       private_constant :SAFECLEAN
-
-      MAIN_KEY = "ultimate:resurrector"
-      private_constant :MAIN_KEY
-
-      LOCK_KEY = "#{MAIN_KEY}:lock"
-      private_constant :LOCK_KEY
-
-      LAST_RUN_KEY = "#{MAIN_KEY}:last_run"
-      private_constant :LAST_RUN_KEY
 
       class << self
         def setup!
-          @identity = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
-
           register_aed!
           call_cthulhu!
         end
 
+        # go over all sidekiq processes (identities) that were shut down recently, get all their queues and
+        # try to resurrect them
         def resurrect!
-          lock do
+          Sidekiq::Ultimate::Resurrector::Lock.acquire do
             casualties.each do |identity|
               log(:debug) { "Resurrecting #{identity}" }
 
@@ -46,6 +37,10 @@ module Sidekiq
         rescue => e
           log(:error) { "Resurrection failed: #{e}" }
           raise
+        end
+
+        def current_process_identity
+          @current_process_identity ||= Object.new.tap { |o| o.extend Sidekiq::Util }.identity
         end
 
         private
@@ -80,45 +75,33 @@ module Sidekiq
           Sidekiq.on(:shutdown) { aed&.shutdown }
         end
 
+        # put current list of queues into resurrection candidates
         def defibrillate!
           Sidekiq.redis do |redis|
             log(:debug) { "Defibrillating" }
 
             queues = JSON.dump(Sidekiq.options[:queues].uniq)
-            redis.hset(MAIN_KEY, @identity, queues)
+            redis.hset(CommonConstants::MAIN_KEY, current_process_identity, queues)
           end
         end
 
-        def lock
-          Sidekiq.redis do |redis|
-            Redis::Lockers.acquire(redis, LOCK_KEY, :ttl => 30_000) do
-              results  = redis.pipelined { |r| [r.time, r.get(LAST_RUN_KEY)] }
-              distance = results[0][0] - results[1].to_i
-
-              break unless 60 < distance
-
-              yield
-
-              redis.set(LAST_RUN_KEY, redis.time.first)
-            end
-          end
-        end
-
+        # list of processes that disappeared after latest #defibrillate!
         def casualties
           Sidekiq.redis do |redis|
             casualties = []
-            identities = redis.hkeys(MAIN_KEY)
+            identities = redis.hkeys(CommonConstants::MAIN_KEY)
 
-            redis.pipelined { identities.each { |k| redis.exists k } }.
+            redis.pipelined { identities.each { |k| redis.exists? k } }.
               each_with_index { |v, i| casualties << identities[i] unless v }
 
             casualties
           end
         end
 
+        # Get list of genuine sidekiq queues names for a given identity (sidekiq process id)
         def queues_of(identity)
           Sidekiq.redis do |redis|
-            queues = redis.hget(MAIN_KEY, identity)
+            queues = redis.hget(CommonConstants::MAIN_KEY, identity)
 
             return [] unless queues
 
@@ -128,6 +111,7 @@ module Sidekiq
           end
         end
 
+        # Move jobs from inproc to pending
         def resurrect(queue)
           Sidekiq.redis do |redis|
             result = RESURRECT.eval(redis, {
@@ -136,14 +120,16 @@ module Sidekiq
 
             if result.positive?
               log(:info) { "Resurrected #{result} jobs from #{queue.inproc}" }
+              Sidekiq::Ultimate::Configuration.instance.on_resurrection&.call(queue.to_s, result.to_i)
             end
           end
         end
 
+        # Delete empty inproc queues and clean up identity key from resurrection candidates (CommonConstants::MAIN_KEY)
         def cleanup(identity, inprocs)
           Sidekiq.redis do |redis|
             result = SAFECLEAN.eval(redis, {
-              :keys => [MAIN_KEY, *inprocs],
+              :keys => [CommonConstants::MAIN_KEY, *inprocs],
               :argv => [identity]
             })
 
@@ -153,7 +139,7 @@ module Sidekiq
 
         def log(level)
           Sidekiq.logger.public_send(level) do
-            "[#{self}] @#{@identity} #{yield}"
+            "[#{self}] @#{current_process_identity} #{yield}"
           end
         end
       end

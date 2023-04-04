@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 require "sidekiq/ultimate/version"
 
-Gem::Specification.new do |spec|
+Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
   spec.name          = "sidekiq-ultimate"
   spec.version       = Sidekiq::Ultimate::VERSION
   spec.authors       = ["Alexey Zapparov"]

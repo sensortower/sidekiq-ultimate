@@ -2,7 +2,7 @@
 
 require "sidekiq/throttled"
 
-require "sidekiq/ultimate/version"
+require "sidekiq/ultimate/configuration"
 
 module Sidekiq
   # Sidekiq ultimate experience.
@@ -10,10 +10,18 @@ module Sidekiq
     class << self
       # Sets up reliable throttled fetch and friends.
       # @return [void]
-      def setup!
+      def setup!(&configuration_block)
+        configuration_block&.call(Sidekiq::Ultimate::Configuration.instance)
+
         Sidekiq::Throttled::Communicator.instance.setup!
         Sidekiq::Throttled::QueuesPauser.instance.setup!
 
+        sidekiq_configure_server
+      end
+
+      private
+
+      def sidekiq_configure_server
         Sidekiq.configure_server do |config|
           require "sidekiq/ultimate/fetch"
           Sidekiq::Ultimate::Fetch.setup!

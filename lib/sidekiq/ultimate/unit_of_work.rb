@@ -10,8 +10,7 @@ module Sidekiq
     #
     # @private
     class UnitOfWork
-      REQUEUE = Redis::Prescription.read \
-        "#{__dir__}/unit_of_work/requeue.lua"
+      REQUEUE = Redis::Prescription.read("#{__dir__}/unit_of_work/requeue.lua")
       private_constant :REQUEUE
 
       # JSON payload

@@ -11,5 +11,5 @@ RuboCop::RakeTask.new
 if ENV["CI"]
   task :default => :spec
 else
-  task :default => %i[rubocop spec]
+  task :default => %i[rubocop spec] # rubocop:disable Rake/DuplicateTask
 end
