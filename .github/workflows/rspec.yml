@@ -23,7 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby-version: ['2.6', '2.7.6']
+        ruby-version: ['2.6', '2.7']
+        gemfile: ['', '.redis41', '.redis42', '.redis48']
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile${{ matrix.gemfile }}
 
     steps:
     - uses: actions/checkout@v3
@@ -32,7 +35,7 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-    - name: Run docker-compose
+    - name: Run redis
       run: docker-compose up -d
     - name: Run tests and rubocop
       run: bundle exec rake
