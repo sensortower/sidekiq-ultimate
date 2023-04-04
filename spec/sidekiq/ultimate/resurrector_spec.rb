@@ -91,7 +91,13 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
       sleep(1) # Wait for any other timer to run
 
-      resurrector_key = Sidekiq.redis { |redis| redis.exists?("ultimate:resurrector") }
+      resurrector_key = Sidekiq.redis do |redis|
+        if Sidekiq::Ultimate::Resurrector::USE_EXISTS_QUESTION_MARK
+          redis.exists?("ultimate:resurrector")
+        else
+          redis.exists("ultimate:resurrector")
+        end
+      end
       expect(resurrector_key).to be_falsy
     end
   end

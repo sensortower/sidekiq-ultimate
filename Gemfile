@@ -27,5 +27,4 @@ group :doc do
   gem "yard"
 end
 
-# Specify your gem's dependencies in redis-prescription.gemspec
 gemspec

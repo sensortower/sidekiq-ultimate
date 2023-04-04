@@ -21,6 +21,10 @@ module Sidekiq
       DEFIBRILLATE_INTERVAL = 5
       private_constant :DEFIBRILLATE_INTERVAL
 
+      # Redis-rb 4.2.0 renamed `#exists` to `#exists?` and changed behaviour of `#exists` to return integer
+      # https://github.com/redis/redis-rb/blob/master/CHANGELOG.md#420
+      USE_EXISTS_QUESTION_MARK = Gem::Version.new(Redis::VERSION) >= Gem::Version.new("4.2.0")
+
       class << self
         def setup!
           register_aed!
@@ -92,13 +96,15 @@ module Sidekiq
         # list of processes that disappeared after latest #defibrillate!
         def casualties
           Sidekiq.redis do |redis|
-            casualties = []
-            identities = redis.hkeys(CommonConstants::MAIN_KEY)
+            sidekiq_processes = redis.hkeys(CommonConstants::MAIN_KEY)
 
-            redis.pipelined { identities.each { |k| redis.exists? k } }.
-              each_with_index { |v, i| casualties << identities[i] unless v }
+            sidekiq_processes_alive = redis.pipelined do |pipeline|
+              sidekiq_processes.each do |sidekiq_process_id|
+                USE_EXISTS_QUESTION_MARK ? pipeline.exists?(sidekiq_process_id) : pipeline.exists(sidekiq_process_id)
+              end
+            end
 
-            casualties
+            sidekiq_processes.zip(sidekiq_processes_alive).reject { |(_, alive)| alive }.map(&:first)
           end
         end
 

@@ -4,7 +4,7 @@ require:
   - rubocop-rspec
 
 AllCops:
-  TargetRubyVersion: 2.3
+  TargetRubyVersion: 2.6
   DisplayCopNames: true
   NewCops: enable
 
@@ -31,6 +31,12 @@ Layout/HashAlignment:
 Metrics/BlockLength:
   Exclude:
     - "spec/**/*"
+
+Metrics/MethodLength:
+  CountAsOne: ['array', 'hash', 'heredoc', 'method_call']
+
+Metrics/ModuleLength:
+  CountAsOne: ['array', 'hash', 'heredoc', 'method_call']
 
 ## Style #######################################################################
 

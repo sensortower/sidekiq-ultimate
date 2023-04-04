@@ -23,6 +23,7 @@ Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
   spec.require_paths = ["lib"]
 
   spec.add_runtime_dependency "concurrent-ruby",    "~> 1.0"
+  spec.add_runtime_dependency "redis",              "~> 4.1"
   spec.add_runtime_dependency "redis-lockers",      "~> 1.1"
   spec.add_runtime_dependency "redis-prescription", "~> 1.0"
   spec.add_runtime_dependency "sidekiq",            "~> 5.0"
@@ -33,5 +34,5 @@ Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
 
   spec.add_development_dependency "bundler", "~> 2.0"
 
-  spec.required_ruby_version = "~> 2.3"
+  spec.required_ruby_version = "~> 2.6"
 end

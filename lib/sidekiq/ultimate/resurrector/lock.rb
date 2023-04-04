@@ -21,7 +21,7 @@ module Sidekiq
           def acquire
             Sidekiq.redis do |redis|
               Redis::Lockers.acquire(redis, LOCK_KEY, :ttl => LOCK_TTL) do
-                results  = redis.pipelined { |r| [r.time, r.get(LAST_RUN_KEY)] }
+                results  = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }
                 distance = results[0][0] - results[1].to_i
 
                 break unless CommonConstants::RESURRECTOR_INTERVAL < distance
