@@ -19,6 +19,18 @@ permissions:
   contents: read
 
 jobs:
+  rubocop:
+    name: Rubocop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+          bundler-cache: true
+      - name: Run rubocop
+        run: bundle exec rubocop
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -37,5 +49,5 @@ jobs:
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
     - name: Run redis
       run: docker-compose up -d
-    - name: Run tests and rubocop
-      run: bundle exec rake
+    - name: Run tests
+      run: bundle exec rake spec
