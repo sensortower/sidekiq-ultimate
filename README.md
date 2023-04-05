@@ -69,7 +69,6 @@ Thus look up it's README for throttling configuration details.
 This library aims to support and is tested against the following Ruby and Redis client versions:
 
 * Ruby
-  * 2.6.x
   * 2.7.x
 
 * [redis-rb](https://github.com/redis/redis-rb)

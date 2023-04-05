@@ -34,5 +34,5 @@ Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
 
   spec.add_development_dependency "bundler", "~> 2.0"
 
-  spec.required_ruby_version = "~> 2.6"
+  spec.required_ruby_version = "~> 2.7"
 end
