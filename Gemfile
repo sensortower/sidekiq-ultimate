@@ -3,9 +3,13 @@
 source "https://rubygems.org"
 ruby RUBY_VERSION
 
+gem "appraisal"
 gem "rake"
 gem "rspec"
-gem "rubocop", "~> 0.52.0", :require => false
+gem "rubocop", "~> 1.49.0", :require => false
+gem "rubocop-performance", :require => false
+gem "rubocop-rake", :require => false
+gem "rubocop-rspec", :require => false
 
 group :development do
   gem "guard",         :require => false
@@ -19,10 +23,4 @@ group :test do
   gem "simplecov",  :require => false
 end
 
-group :doc do
-  gem "redcarpet"
-  gem "yard"
-end
-
-# Specify your gem's dependencies in redis-prescription.gemspec
 gemspec

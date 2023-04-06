@@ -8,8 +8,4 @@ RSpec::Core::RakeTask.new
 require "rubocop/rake_task"
 RuboCop::RakeTask.new
 
-if ENV["CI"]
-  task :default => :spec
-else
-  task :default => %i[rubocop spec]
-end
+task :default => %i[rubocop spec]
