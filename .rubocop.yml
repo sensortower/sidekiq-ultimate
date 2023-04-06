@@ -63,9 +63,7 @@ Style/YodaCondition:
 
 ## RSpec ########################################################################
 RSpec/ExampleLength:
-  Max: 7
   Enabled: false
 
 RSpec/MultipleExpectations:
-  Max: 2
   Enabled: false
