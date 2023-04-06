@@ -9,6 +9,7 @@ AllCops:
   NewCops: enable
   Exclude:
     - "gemfiles/**/*"
+    - "vendor/**/*"
 
 
 ## Layout ######################################################################
