@@ -23,9 +23,4 @@ group :test do
   gem "simplecov",  :require => false
 end
 
-group :doc do
-  gem "redcarpet"
-  gem "yard"
-end
-
 gemspec
