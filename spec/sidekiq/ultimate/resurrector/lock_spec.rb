@@ -27,7 +27,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector::Lock do
 
     context "when it was executed more than 60 seconds" do
       before do
-        Sidekiq.redis { |redis| redis.set("ultimate:resurrector:last_run", Time.now.to_i - 62) }
+        Sidekiq.redis { |redis| redis.set("ultimate:resurrector:last_run", Time.now.to_i - 100) }
       end
 
       it "yields" do

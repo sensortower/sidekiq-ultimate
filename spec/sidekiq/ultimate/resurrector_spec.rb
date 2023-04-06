@@ -71,7 +71,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
 
       sidekiq_util.fire_event(:heartbeat)
 
-      sleep(1) # Wait for the timer task to run
+      sleep(0.5) # Wait for the timer task to run
 
       keys = Sidekiq.redis { |redis| redis.hgetall("ultimate:resurrector") }
       expect(keys).to eq({ identity => "[\"queue1\",\"queue2\"]" })
@@ -89,7 +89,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(1).to(0)
 
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
-      sleep(1) # Wait for any other timer to run
+      sleep(0.5) # Wait for any other timer to run
 
       resurrector_key = Sidekiq.redis do |redis|
         if Sidekiq::Ultimate::Resurrector::USE_EXISTS_QUESTION_MARK

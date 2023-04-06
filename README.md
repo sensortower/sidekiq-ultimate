@@ -121,4 +121,4 @@ See [LICENSE.md][] for further details.
 
 [rubygems.org]: https://rubygems.org
 [LICENSE.md]: https://github.com/sensortower/sidekiq-ultimate/blob/master/LICENSE.txt
-[sidekiq-throttled]: https://github.com/ixti/sidekiq-throttled-tmp
+[sidekiq-throttled]: https://github.com/ixti/sidekiq-throttled

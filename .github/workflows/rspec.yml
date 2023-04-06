@@ -15,9 +15,6 @@ on:
   pull_request:
     branches: [ master ]
 
-permissions:
-  contents: read
-
 jobs:
   rubocop:
     name: Rubocop
@@ -26,7 +23,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.7
+          ruby-version: 2.7.6
           bundler-cache: true
       - run: bundle exec rubocop
 
@@ -34,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ruby-version: ['2.7']
-        gemfile: ['', '.redis41', '.redis42', '.redis48']
+        ruby-version: ['2.7.6']
+        redis: ['4.1', '4.2', '4.8']
     env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/Gemfile${{ matrix.gemfile }}
+      BUNDLE_GEMFILE: gemfiles/redis_${{ matrix.redis }}.gemfile
 
     steps:
     - uses: actions/checkout@v3

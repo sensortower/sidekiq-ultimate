@@ -3,6 +3,7 @@
 source "https://rubygems.org"
 ruby RUBY_VERSION
 
+gem "appraisal"
 gem "rake"
 gem "rspec"
 gem "rubocop", :require => false
