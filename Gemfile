@@ -6,7 +6,7 @@ ruby RUBY_VERSION
 gem "appraisal"
 gem "rake"
 gem "rspec"
-gem "rubocop", :require => false
+gem "rubocop", "~> 1.49.0", :require => false
 gem "rubocop-performance", :require => false
 gem "rubocop-rake", :require => false
 gem "rubocop-rspec", :require => false
