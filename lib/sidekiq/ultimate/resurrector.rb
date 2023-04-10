@@ -1,21 +1,19 @@
 # frozen_string_literal: true
 
-require "redis/prescription"
+require "redis_prescription"
 require "concurrent/timer_task"
 
 require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector/lock"
 require "sidekiq/ultimate/resurrector/common_constants"
+require "sidekiq/ultimate/resurrector/resurrection_script"
 require "sidekiq/ultimate/configuration"
 
 module Sidekiq
   module Ultimate
     # Lost jobs checker and resurrector
     module Resurrector
-      RESURRECT = Redis::Prescription.read("#{__dir__}/resurrector/resurrect.lua")
-      private_constant :RESURRECT
-
-      SAFECLEAN = Redis::Prescription.read("#{__dir__}/resurrector/safeclean.lua")
+      SAFECLEAN = RedisPrescription.new(File.read("#{__dir__}/resurrector/lua_scripts/safeclean.lua"))
       private_constant :SAFECLEAN
 
       DEFIBRILLATE_INTERVAL = 5
@@ -124,13 +122,11 @@ module Sidekiq
         # Move jobs from inproc to pending
         def resurrect(queue)
           Sidekiq.redis do |redis|
-            result = RESURRECT.eval(redis, {
-              :keys => [queue.inproc, queue.pending]
-            })
+            resurrected_jobs_count = ResurrectionScript.call(redis, :keys => [queue.inproc, queue.pending])
 
-            if result.positive?
-              log(:info) { "Resurrected #{result} jobs from #{queue.inproc}" }
-              Sidekiq::Ultimate::Configuration.instance.on_resurrection&.call(queue.to_s, result.to_i)
+            if resurrected_jobs_count.positive?
+              log(:info) { "Resurrected #{resurrected_jobs_count} jobs from #{queue.inproc}" }
+              Sidekiq::Ultimate::Configuration.instance.on_resurrection&.call(queue.to_s, resurrected_jobs_count)
             end
           end
         end
@@ -138,7 +134,7 @@ module Sidekiq
         # Delete empty inproc queues and clean up identity key from resurrection candidates (CommonConstants::MAIN_KEY)
         def cleanup(identity, inprocs)
           Sidekiq.redis do |redis|
-            result = SAFECLEAN.eval(redis, {
+            result = SAFECLEAN.call(redis, {
               :keys => [CommonConstants::MAIN_KEY, *inprocs],
               :argv => [identity]
             })

@@ -42,7 +42,9 @@ Sidekiq::Ultimate.setup!
 
 ## Configuration
 
-Resurrection events can be additionally logged by providing `on_resurrection` handler:
+### Resurrection event handler
+
+An event handler can be called when a job is resurrected.
 
 ```ruby
 Sidekiq::Ultimate.setup! do |config|
@@ -50,6 +52,38 @@ Sidekiq::Ultimate.setup! do |config|
     puts "Resurrected #{jobs_count} jobs from #{queue_name}"
   end
 end
+```
+
+### Resurrection counter
+
+On each resurrection event, a counter is increased. Counter value is stored in redis and has expiration time set to 
+24 hours. For example this can be used in the `ServerMiddleware` later on to kill resurrected jobs 
+if needed based on the count.
+
+`resurrection_counter` can be both a `Proc` and a constant value. 
+
+Having a `Proc` is useful if you want to enable or disable resurrection counter in run time. It will be called on each 
+resurrection event to decide whether to increase the counter or not.
+
+```ruby
+Sidekiq::Ultimate.setup! do |config|
+  config.resurrection_counter = -> do
+    (Time.now.to_i % 2).zero?
+  end
+end
+
+Sidekiq::Ultimate.setup! do |config|
+  config.resurrection_counter = true
+end
+```
+
+#### Read the value
+
+Resurrection counter value can be read using `Sidekiq::Ultimate::Resurrector::Count.read` method.
+
+```ruby
+Sidekiq::Ultimate::Resurrector::Count.read(:job_id => "2647c4fe13acc692326bd4c2")
+=> 1
 ```
 
 ---
