@@ -22,16 +22,13 @@ Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_runtime_dependency "concurrent-ruby", "~> 1.0"
-  spec.add_runtime_dependency "redis", "~> 4.1"
-  spec.add_runtime_dependency "redis-namespace", "~> 1.10"
-  spec.add_runtime_dependency "redis-prescription", "~> 2.4.0"
-  spec.add_runtime_dependency "redlock", "~> 1.3"
+  spec.add_runtime_dependency "concurrent-ruby",    "~> 1.0"
+  spec.add_runtime_dependency "redis",              "~> 4.1"
+  spec.add_runtime_dependency "redis-namespace",    "~> 1.10"
+  spec.add_runtime_dependency "redis-prescription", "~> 2.4"
+  spec.add_runtime_dependency "redlock",            "~> 1.3"
   spec.add_runtime_dependency "sidekiq",            "~> 5.0"
-
-  # temporary couple this with sidekiq-throttled until it will be merged into
-  # this gem instead.
-  spec.add_runtime_dependency "sidekiq-throttled",  "~> 0.8"
+  spec.add_runtime_dependency "sidekiq-throttled",  "~> 0.15.1"
 
   spec.add_development_dependency "bundler", "~> 2.0"
 
