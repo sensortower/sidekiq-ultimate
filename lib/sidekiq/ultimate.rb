@@ -3,6 +3,7 @@
 require "sidekiq/throttled"
 
 require "sidekiq/ultimate/configuration"
+require "sidekiq/ultimate/resurrector/count"
 
 module Sidekiq
   # Sidekiq ultimate experience.
