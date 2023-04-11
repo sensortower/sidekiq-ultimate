@@ -112,10 +112,17 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         expect(counter2_ttl).to be_within(5).of(86_400)
       end
 
-      it "does not increment the resurrection counter when enable_resurrection_counter is not set" do
+      it "does not increment the resurrection counter when enable_resurrection_counter is false" do
         allow(Sidekiq::Ultimate::Configuration.instance).
           to receive(:enable_resurrection_counter).and_return(-> { false })
 
+        resurrect!
+
+        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
+        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
+      end
+
+      it "does not increment the resurrection counter when enable_resurrection_counter is not set" do
         resurrect!
 
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
