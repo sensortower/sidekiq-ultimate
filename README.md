@@ -56,24 +56,24 @@ end
 
 ### Resurrection counter
 
-On each resurrection event, a counter is increased. Counter value is stored in redis and has expiration time set to 
-24 hours. For example this can be used in the `ServerMiddleware` later on to kill resurrected jobs 
-if needed based on the count.
+A resurrection counter can be enabled to count how many times a job was resurrected. If `enable_resurrection_counter` setting is enabled, on each resurrection event, a counter is increased. Counter value is stored in redis and has expiration time 24 hours. 
 
-`resurrection_counter` can be both a `Proc` and a constant value. 
+For example this can be used in the `ServerMiddleware` later on to early return resurrected jobs based on the counter value.
+
+`enable_resurrection_counter` can be either a `Proc` or a constant. 
 
 Having a `Proc` is useful if you want to enable or disable resurrection counter in run time. It will be called on each 
 resurrection event to decide whether to increase the counter or not.
 
 ```ruby
 Sidekiq::Ultimate.setup! do |config|
-  config.resurrection_counter = -> do
-    (Time.now.to_i % 2).zero?
+  config.enable_resurrection_counter = -> do
+    DynamicSettings.get("enable_resurrection_counter")
   end
 end
 
 Sidekiq::Ultimate.setup! do |config|
-  config.resurrection_counter = true
+  config.enable_resurrection_counter = true
 end
 ```
 
