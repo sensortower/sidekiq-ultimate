@@ -121,6 +121,32 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
       end
+
+      it "executes resurrection_counter Proc on each resurrection event" do
+        enable_resurrection_counter = true
+        allow(Sidekiq::Ultimate::Configuration.instance).
+          to receive(:enable_resurrection_counter).and_return(-> { enable_resurrection_counter })
+
+        resurrect!
+
+        counter1 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
+        counter2 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }
+
+        expect(counter1).to eq("1")
+        expect(counter2).to eq("1")
+
+        Sidekiq.redis(&:clear)
+
+        enable_resurrection_counter = false
+
+        resurrect!
+
+        counter1 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
+        counter2 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }
+
+        expect(counter1).to be_nil
+        expect(counter2).to be_nil
+      end
     end
   end
 

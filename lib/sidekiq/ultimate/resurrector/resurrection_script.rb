@@ -15,38 +15,35 @@ module Sidekiq
         RESURRECT_WITH_COUNTER = RedisPrescription.new(File.read("#{__dir__}/lua_scripts/resurrect_with_counter.lua"))
         private_constant :RESURRECT_WITH_COUNTER
 
-        class << self
-          def call(redis, keys:)
-            # redis-namespace can only namespace arguments of the lua script
-            keys += [CommonConstants::MAIN_KEY] if enable_resurrection_counter_setting
-            script.call(redis, :keys => keys)
-          end
+        def self.call(*args)
+          new.call(*args)
+        end
 
-          private
+        def call(redis, keys:)
+          # redis-namespace can only namespace arguments of the lua script, so we need to pass the main key
+          keys += [CommonConstants::MAIN_KEY] if enable_resurrection_counter
+          script.call(redis, :keys => keys)
+        end
 
-          def script
-            return @script if cache_setting? && defined?(@script)
+        private
 
-            enable_resurrection_counter =
-              if enable_resurrection_counter_setting.respond_to?(:call)
-                enable_resurrection_counter_setting.call
-              else
-                enable_resurrection_counter_setting
-              end
+        def script
+          enable_resurrection_counter ? RESURRECT_WITH_COUNTER : RESURRECT
+        end
 
-            script = enable_resurrection_counter ? RESURRECT_WITH_COUNTER : RESURRECT
+        def enable_resurrection_counter
+          return @enable_resurrection_counter if defined?(@enable_resurrection_counter)
 
-            @script = script if cache_setting?
-            script
-          end
+          @enable_resurrection_counter =
+            if enable_resurrection_counter_setting.respond_to?(:call)
+              enable_resurrection_counter_setting.call
+            else
+              enable_resurrection_counter_setting
+            end
+        end
 
-          def enable_resurrection_counter_setting
-            Sidekiq::Ultimate::Configuration.instance.enable_resurrection_counter
-          end
-
-          def cache_setting?
-            !enable_resurrection_counter_setting.respond_to?(:call)
-          end
+        def enable_resurrection_counter_setting
+          Sidekiq::Ultimate::Configuration.instance.enable_resurrection_counter
         end
       end
     end
