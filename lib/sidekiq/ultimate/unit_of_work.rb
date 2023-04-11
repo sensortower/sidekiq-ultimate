@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "redis/prescription"
+require "redis_prescription"
 
 require "sidekiq/throttled"
 
@@ -10,7 +10,7 @@ module Sidekiq
     #
     # @private
     class UnitOfWork
-      REQUEUE = Redis::Prescription.read("#{__dir__}/unit_of_work/requeue.lua")
+      REQUEUE = RedisPrescription.new(File.read("#{__dir__}/unit_of_work/requeue.lua"))
       private_constant :REQUEUE
 
       # JSON payload
@@ -94,7 +94,7 @@ module Sidekiq
           return if @requeued || @acked
 
           Sidekiq.redis do |redis|
-            REQUEUE.eval(redis, {
+            REQUEUE.call(redis, {
               :keys => [@queue.pending, @queue.inproc],
               :argv => [command, @job]
             })

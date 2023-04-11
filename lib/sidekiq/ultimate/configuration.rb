@@ -16,7 +16,7 @@ module Sidekiq
       #  Sidekiq::Ultimate::Configuration.instance.on_resurrection = ->(queue_name, jobs_count) do
       #    puts "Resurrected #{jobs_count} jobs from #{queue_name}"
       #  end
-      attr_accessor :on_resurrection
+      attr_accessor :on_resurrection, :enable_resurrection_counter
     end
   end
 end
