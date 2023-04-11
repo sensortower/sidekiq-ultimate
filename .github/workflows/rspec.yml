@@ -51,3 +51,4 @@ jobs:
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
     - run: docker-compose up -d
     - run: bundle exec rake spec
+    - uses: codecov/codecov-action@v3
