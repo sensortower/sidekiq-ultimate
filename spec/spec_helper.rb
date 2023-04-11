@@ -99,7 +99,7 @@ RSpec.configure do |config|
   # as the one that triggered the failure.
   Kernel.srand config.seed
 
-  ENV["REDIS_NAMESPACE_QUIET"] = "1"
+  ENV["REDIS_NAMESPACE_QUIET"] = "1" # Silence Redis namespace warnings
   Sidekiq.redis = { :namespace => "sidekiq-ultimate", :size => 1, :url => "redis://localhost/0" }
 
   config.before :each, :redis => true do
