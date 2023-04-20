@@ -41,7 +41,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
             r.set("ultimate:empty_queues_updater:last_run", r.time[0])
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
-            r.sadd("queues", %w[john ringo turtle3])
+            r.sadd("queues", %w[john ringo paul])
             r.lpush("john", 1)
 
             expect { instance.refresh! }.
@@ -57,16 +57,13 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
 
           Sidekiq.redis do |r|
             r.sadd("ultimate:empty_queues", %w[john])
-            r.sadd("queues", %w[john ringo turtle3])
+            r.sadd("queues", %w[john ringo paul])
             r.lpush("john", 1)
 
-            expect { instance.refresh! }.
-              to change { r.smembers("ultimate:empty_queues") }.
-              from(%w[john]).
-              to(match_array(%w[ringo turtle3])).
-              and change(instance, :queues).
-              from(%w[john]).
-              to(match_array(%w[ringo turtle3]))
+            expect(instance.refresh!).to be_truthy
+
+            expect(r.smembers("ultimate:empty_queues")).to match_array(%w[ringo paul])
+            expect(instance.queues).to match_array(%w[ringo paul])
           end
         end
       end
@@ -76,17 +73,16 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
-            Redlock::Client.new([r]).lock("ultimate:empty_queues_updater:lock", 30_000)
+            Redlock::Client.new([r]).lock("#{Sidekiq.redis(&:namespace)}:ultimate:empty_queues_updater:lock", 30_000)
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
             r.sadd("queues", %w[john ringo paul])
             r.lpush("john", 1)
 
-            expect { instance.refresh! }.
-              to not_change { r.smembers("ultimate:empty_queues") }.
-              and change(instance, :queues).
-              from(%w[john]).
-              to(match_array(%w[john ringo]))
+            expect(instance.refresh!).to be_truthy
+
+            expect(r.smembers("ultimate:empty_queues")).to match_array(%w[john ringo])
+            expect(instance.queues).to match_array(%w[john ringo])
           end
         end
       end

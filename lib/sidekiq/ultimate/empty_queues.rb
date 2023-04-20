@@ -108,10 +108,10 @@ module Sidekiq
 
       # @return [Boolean] true if lock was acquired
       def global_lock
-        return false if Sidekiq.redis { |r| skip_update?(r) }
-
         Sidekiq.redis do |redis|
-          Redlock::Client.new([redis], :retry_count => 0).lock(LOCK_KEY, 30_000) do |locked|
+          break false if skip_update?(redis) # Cheap check since lock will not be free most of the time
+
+          Redlock::Client.new([redis], :retry_count => 0).lock(namespaced_lock_key, 30_000) do |locked|
             break false unless locked
             break false if skip_update?(redis)
 
@@ -138,6 +138,10 @@ module Sidekiq
           break if cursor == "0"
         end
         result
+      end
+
+      def namespaced_lock_key
+        @namespaced_lock_key ||= "#{Sidekiq.redis(&:namespace)}:#{LOCK_KEY}"
       end
     end
   end
