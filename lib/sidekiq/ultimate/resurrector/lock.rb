@@ -20,7 +20,7 @@ module Sidekiq
         class << self
           def acquire
             Sidekiq.redis do |redis|
-              Redlock::Client.new([redis]).lock(LOCK_KEY, LOCK_TTL) do |locked|
+              Redlock::Client.new([redis], :retry_count => 0).lock(LOCK_KEY, LOCK_TTL) do |locked|
                 break unless locked
 
                 results  = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }

@@ -6,6 +6,7 @@ require "sidekiq/ultimate/expirable_set"
 require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector"
 require "sidekiq/ultimate/unit_of_work"
+require "sidekiq/ultimate/empty_queues"
 
 module Sidekiq
   module Ultimate
@@ -14,17 +15,14 @@ module Sidekiq
       # Delay between fetch retries in case of no job received.
       TIMEOUT = 2
 
-      # Delay between queue poll attempts if last poll returned no jobs for it.
-      QUEUE_TIMEOUT = 5
-
       # Delay between queue poll attempts if it's last job was throttled.
       THROTTLE_TIMEOUT = 15
 
       def initialize(options)
-        @exhausted = ExpirableSet.new
-
+        @exhausted_by_throttling = ExpirableSet.new
+        @empty_queues = Sidekiq::Ultimate::EmptyQueues.instance
         @strict = options[:strict] ? true : false
-        @queues = options[:queues].map { |name| QueueName.new(name) }
+        @queues = options[:queues]
 
         @queues.uniq! if @strict
 
@@ -39,8 +37,7 @@ module Sidekiq
         if work&.throttled?
           work.requeue_throttled
 
-          queue = QueueName.new(work.queue_name)
-          @exhausted.add(queue, :ttl => THROTTLE_TIMEOUT)
+          @exhausted_by_throttling.add(work.queue_name, :ttl => THROTTLE_TIMEOUT)
 
           return nil
         end
@@ -55,17 +52,16 @@ module Sidekiq
       def self.setup!
         Sidekiq.options[:fetch] = self
         Resurrector.setup!
+        EmptyQueues.setup!
       end
 
       private
 
       def retrieve
         Sidekiq.redis do |redis|
-          queues.each do |queue|
+          queues_objects.each do |queue|
             job = redis.rpoplpush(queue.pending, queue.inproc)
             return UnitOfWork.new(queue, job) if job
-
-            @exhausted.add(queue, :ttl => QUEUE_TIMEOUT)
           end
         end
 
@@ -73,19 +69,19 @@ module Sidekiq
         nil
       end
 
-      def queues
-        queues = (@strict ? @queues : @queues.shuffle.uniq) - @exhausted.to_a
+      def queues_objects
+        queues = (@strict ? @queues : @queues.shuffle.uniq) - @exhausted_by_throttling.to_a - @empty_queues.queues
 
         # Avoid calling heavier `paused_queue` if there's nothing to filter out
         return queues if queues.empty?
 
-        queues - paused_queues
+        (queues - paused_queues).map { |name| QueueName.new(name) }
       end
 
       def paused_queues
         return @paused_queues if Time.now.to_i < @paused_queues_expires_at
 
-        @paused_queues = Sidekiq::Throttled::QueuesPauser.instance.paused_queues.map { |q| QueueName[q] }.freeze
+        @paused_queues = Sidekiq::Throttled::QueuesPauser.instance.paused_queues
         @paused_queues_expires_at = Time.now.to_i + 60
 
         @paused_queues

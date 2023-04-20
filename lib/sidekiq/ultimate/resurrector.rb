@@ -8,6 +8,7 @@ require "sidekiq/ultimate/resurrector/lock"
 require "sidekiq/ultimate/resurrector/common_constants"
 require "sidekiq/ultimate/resurrector/resurrection_script"
 require "sidekiq/ultimate/configuration"
+require "sidekiq/ultimate/use_exists_question_mark"
 
 module Sidekiq
   module Ultimate
@@ -18,10 +19,6 @@ module Sidekiq
 
       DEFIBRILLATE_INTERVAL = 5
       private_constant :DEFIBRILLATE_INTERVAL
-
-      # Redis-rb 4.2.0 renamed `#exists` to `#exists?` and changed behaviour of `#exists` to return integer
-      # https://github.com/redis/redis-rb/blob/master/CHANGELOG.md#420
-      USE_EXISTS_QUESTION_MARK = Gem::Version.new(Redis::VERSION) >= Gem::Version.new("4.2.0")
 
       class << self
         def setup!
@@ -97,8 +94,8 @@ module Sidekiq
             sidekiq_processes = redis.hkeys(CommonConstants::MAIN_KEY)
 
             sidekiq_processes_alive = redis.pipelined do |pipeline|
-              sidekiq_processes.each do |sidekiq_process_id|
-                USE_EXISTS_QUESTION_MARK ? pipeline.exists?(sidekiq_process_id) : pipeline.exists(sidekiq_process_id)
+              sidekiq_processes.each do |process|
+                Sidekiq::Ultimate::UseExistsQuestionMark.use? ? pipeline.exists?(process) : pipeline.exists(process)
               end
             end
 

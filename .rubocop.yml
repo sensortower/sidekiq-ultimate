@@ -70,3 +70,13 @@ RSpec/MultipleExpectations:
 
 RSpec/MultipleMemoizedHelpers:
   Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+Lint/AmbiguousBlockAssociation:
+  Exclude:
+    - "spec/**/*"
+
+RSpec/IndexedLet:
+  Max: 5
