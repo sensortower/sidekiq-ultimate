@@ -61,6 +61,9 @@ module Sidekiq
         ensure
           local_lock.unlock
         end
+      rescue => e
+        Sidekiq.logger.error { "Empty queues list update failed: #{e}" }
+        raise
       end
 
       private
@@ -68,6 +71,8 @@ module Sidekiq
       # Automatically updates local list if global list was updated
       # @return [Boolean] true if list was updated
       def refresh_global_list!
+        Sidekiq.logger.debug { "Refreshing global list" }
+
         global_lock do
           Sidekiq.redis do |redis|
             empty_queues = fetch_empty_queues(redis)
@@ -96,13 +101,17 @@ module Sidekiq
       end
 
       def set_global_list!(redis, list)
+        Sidekiq.logger.debug { "Setting global list" }
+
         redis.multi do |multi|
           multi.del(KEY)
-          multi.sadd(KEY, list)
+          multi.sadd(KEY, list) if list.any?
         end
       end
 
       def set_local_list!(list) # rubocop:disable Naming/AccessorMethodName
+        Sidekiq.logger.debug { "Setting local list" }
+
         @queues = list
       end
 
@@ -129,6 +138,7 @@ module Sidekiq
         last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval
       end
 
+      # Taken from sidekiq's code
       def sscan(conn, key)
         cursor = "0"
         result = []
@@ -141,7 +151,10 @@ module Sidekiq
       end
 
       def namespaced_lock_key
-        @namespaced_lock_key ||= "#{Sidekiq.redis(&:namespace)}:#{LOCK_KEY}"
+        return @namespaced_lock_key if defined?(@namespaced_lock_key)
+
+        namespace = Sidekiq.redis { |redis| redis.namespace if redis.respond_to?(:namespace) }
+        @namespaced_lock_key = "#{namespace}:#{LOCK_KEY}"
       end
     end
   end

@@ -34,7 +34,10 @@ module Sidekiq
           end
 
           def namespaced_lock_key
-            @namespaced_lock_key ||= "#{Sidekiq.redis(&:namespace)}:#{LOCK_KEY}"
+            return @namespaced_lock_key if defined?(@namespaced_lock_key)
+
+            namespace = Sidekiq.redis { |redis| redis.namespace if redis.respond_to?(:namespace) }
+            @namespaced_lock_key = "#{namespace}:#{LOCK_KEY}"
           end
 
           def resurrected_recently?(redis)

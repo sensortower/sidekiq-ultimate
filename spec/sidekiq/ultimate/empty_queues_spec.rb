@@ -66,6 +66,21 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
             expect(instance.queues).to match_array(%w[ringo paul])
           end
         end
+
+        it "updates the global list and local list if there are no empty queues" do
+          instance.instance_variable_set(:@queues, %w[john])
+
+          Sidekiq.redis do |r|
+            r.sadd("ultimate:empty_queues", %w[john])
+            r.sadd("queues", %w[john])
+            r.lpush("john", 1)
+
+            expect(instance.refresh!).to be_truthy
+
+            expect(r.smembers("ultimate:empty_queues")).to eq([])
+            expect(instance.queues).to eq([])
+          end
+        end
       end
 
       context "when global lock is not free" do
