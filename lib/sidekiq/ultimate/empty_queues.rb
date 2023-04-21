@@ -99,7 +99,10 @@ module Sidekiq
       end
 
       def refresh_local_list!
-        @queues = Sidekiq.redis { |redis| redis.smembers(KEY) }
+        Sidekiq.logger.debug { "Refreshing local list" }
+
+        list = Sidekiq.redis { |redis| redis.smembers(KEY) }
+        set_local_list!(list)
       end
 
       def set_global_list!(redis, list)
