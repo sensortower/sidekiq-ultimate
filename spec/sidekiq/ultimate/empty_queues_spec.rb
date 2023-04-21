@@ -42,7 +42,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
             r.sadd("queues", %w[john ringo paul])
-            r.lpush("john", 1)
+            r.lpush("queue:john", 1)
 
             expect { instance.refresh! }.
               to not_change { r.smembers("ultimate:empty_queues") }.
@@ -58,7 +58,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           Sidekiq.redis do |r|
             r.sadd("ultimate:empty_queues", %w[john])
             r.sadd("queues", %w[john ringo paul])
-            r.lpush("john", 1)
+            r.lpush("queue:john", 1)
 
             expect(instance.refresh!).to be_truthy
 
@@ -73,7 +73,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           Sidekiq.redis do |r|
             r.sadd("ultimate:empty_queues", %w[john])
             r.sadd("queues", %w[john])
-            r.lpush("john", 1)
+            r.lpush("queue:john", 1)
 
             expect(instance.refresh!).to be_truthy
 
@@ -92,7 +92,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
             r.sadd("queues", %w[john ringo paul])
-            r.lpush("john", 1)
+            r.lpush("queue:john", 1)
 
             expect(instance.refresh!).to be_truthy
 
@@ -115,7 +115,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
         Sidekiq.redis do |r|
           r.sadd("ultimate:empty_queues", %w[john])
           r.sadd("queues", %w[john ringo paul])
-          r.lpush("john", 1)
+          r.lpush("queue:john", 1)
 
           expect { instance.refresh! }.
             to  not_change { r.smembers("ultimate:empty_queues") }.

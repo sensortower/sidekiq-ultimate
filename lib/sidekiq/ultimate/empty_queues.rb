@@ -87,9 +87,11 @@ module Sidekiq
         queues = sscan(redis, "queues")
 
         queues_statuses =
-          redis.pipelined do |pipeline|
+          redis.pipelined do |p|
             queues.each do |queue|
-              Sidekiq::Ultimate::UseExistsQuestionMark.use? ? pipeline.exists?(queue) : pipeline.exists(queue)
+              pending_queue = QueueName.new(queue).pending
+
+              Sidekiq::Ultimate::UseExistsQuestionMark.use? ? p.exists?(pending_queue) : p.exists(pending_queue)
             end
           end
 
@@ -101,7 +103,7 @@ module Sidekiq
       end
 
       def set_global_list!(redis, list)
-        Sidekiq.logger.debug { "Setting global list" }
+        Sidekiq.logger.debug { "Setting global list: #{list}" }
 
         redis.multi do |multi|
           multi.del(KEY)
@@ -110,7 +112,7 @@ module Sidekiq
       end
 
       def set_local_list!(list) # rubocop:disable Naming/AccessorMethodName
-        Sidekiq.logger.debug { "Setting local list" }
+        Sidekiq.logger.debug { "Setting local list: #{list}" }
 
         @queues = list
       end
