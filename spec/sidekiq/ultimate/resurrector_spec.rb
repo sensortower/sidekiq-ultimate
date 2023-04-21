@@ -190,12 +190,30 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
     it "unregisters aed on sidekiq shutdown" do
       stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
       described_class.setup!
+      timer_task = Sidekiq::Ultimate::Resurrector::AedTimerTask
 
       expect { sidekiq_util.fire_event(:heartbeat) }.
-        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(0).to(1)
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
 
       expect { sidekiq_util.fire_event(:shutdown) }.
-        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(1).to(0)
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(1).to(0)
+
+      Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
+      sleep(0.5) # Wait for any other timer to run
+
+      expect(key_exists?("ultimate:resurrector")).to be_falsy
+    end
+
+    it "unregisters cthulhu on sidekiq shutdown" do
+      stub_const("Sidekiq::Ultimate::Resurrector::RESURRECTOR_INTERVAL", 0.01)
+      described_class.setup!
+      timer_task = Sidekiq::Ultimate::Resurrector::CtulhuTimerTask
+
+      expect { sidekiq_util.fire_event(:startup) }.
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
+
+      expect { sidekiq_util.fire_event(:shutdown) }.
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(1).to(0)
 
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
       sleep(0.5) # Wait for any other timer to run

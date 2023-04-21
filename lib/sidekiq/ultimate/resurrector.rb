@@ -20,6 +20,9 @@ module Sidekiq
       DEFIBRILLATE_INTERVAL = 5
       private_constant :DEFIBRILLATE_INTERVAL
 
+      CtulhuTimerTask = Class.new(Concurrent::TimerTask)
+      AedTimerTask = Class.new(Concurrent::TimerTask)
+
       class << self
         def setup!
           register_aed!
@@ -54,10 +57,11 @@ module Sidekiq
           Sidekiq.on(:startup) do
             cthulhu&.shutdown
 
-            cthulhu = Concurrent::TimerTask.execute({
+            cthulhu = CtulhuTimerTask.new({
               :run_now            => true,
               :execution_interval => CommonConstants::RESURRECTOR_INTERVAL
             }) { resurrect! }
+            cthulhu.execute
           end
 
           Sidekiq.on(:shutdown) { cthulhu&.shutdown }
@@ -69,10 +73,11 @@ module Sidekiq
           Sidekiq.on(:heartbeat) do
             aed&.shutdown
 
-            aed = Concurrent::TimerTask.execute({
+            aed = AedTimerTask.new({
               :run_now            => true,
               :execution_interval => DEFIBRILLATE_INTERVAL
             }) { defibrillate! }
+            aed.execute
           end
 
           Sidekiq.on(:shutdown) { aed&.shutdown }
@@ -110,9 +115,7 @@ module Sidekiq
 
             return [] unless queues
 
-            JSON.parse(queues).map do |q|
-              QueueName.new(q, :identity => identity)
-            end
+            JSON.parse(queues).map { |q| QueueName.new(q, :identity => identity) }
           end
         end
 

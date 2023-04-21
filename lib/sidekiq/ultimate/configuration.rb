@@ -30,21 +30,21 @@ module Sidekiq
       # Note that every worker needs to maintain its own local list of empty queues. Setting this interval to a low
       # values will increase the number of redis calls and will increase the load on redis.
       # @return [Integer] interval in seconds to refresh the list of empty queues
-      attr_reader :empty_queues_refresh_interval
+      attr_reader :empty_queues_refresh_interval_sec
 
-      DEFAULT_EMPTY_QUEUES_REFRESH_INTERVAL = 30
+      DEFAULT_EMPTY_QUEUES_REFRESH_INTERVAL_SEC = 30
 
       def initialize
-        @empty_queues_refresh_interval = DEFAULT_EMPTY_QUEUES_REFRESH_INTERVAL
+        @empty_queues_refresh_interval_sec = DEFAULT_EMPTY_QUEUES_REFRESH_INTERVAL_SEC
         super
       end
 
-      def empty_queues_refresh_interval=(value)
+      def empty_queues_refresh_interval_sec=(value)
         unless value.is_a?(Numeric)
-          raise ArgumentError, "Invalid 'empty_queues_refresh_interval' value: #{value}. Must be Numeric"
+          raise ArgumentError, "Invalid 'empty_queues_refresh_interval_sec' value: #{value}. Must be Numeric"
         end
 
-        @empty_queues_refresh_interval = value.to_i
+        @empty_queues_refresh_interval_sec = value
       end
     end
   end

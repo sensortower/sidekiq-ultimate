@@ -90,7 +90,7 @@ Sidekiq::Ultimate::Resurrector::Count.read(:job_id => "2647c4fe13acc692326bd4c2"
 
 ```ruby
 Sidekiq::Ultimate.setup! do |config|
-  config.empty_queues_refresh_interval = 42
+  config.empty_queues_refresh_interval_sec = 42
 end
 ```
 

@@ -7,6 +7,7 @@ require "singleton"
 require "sidekiq/ultimate/configuration"
 require "sidekiq/ultimate/use_exists_question_mark"
 require "sidekiq/ultimate/redis_sscan"
+require "sidekiq/ultimate/empty_queues/refresh_timer_task"
 
 module Sidekiq
   module Ultimate
@@ -31,17 +32,14 @@ module Sidekiq
       end
 
       # Sets up automatic empty queues list updater.
-      # It will call #refresh! every `Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval` seconds.
+      # It will call #refresh! every
+      # `Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval_sec` seconds
       def self.setup!
         refresher = nil
 
         Sidekiq.on(:startup) do
           refresher&.shutdown
-
-          refresher = Concurrent::TimerTask.execute({
-            :run_now            => true,
-            :execution_interval => Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval
-          }) { Sidekiq::Ultimate::EmptyQueues.instance.refresh! }
+          refresher = RefreshTimerTask.setup!(self)
         end
 
         Sidekiq.on(:shutdown) { refresher&.shutdown }
@@ -141,7 +139,7 @@ module Sidekiq
         results = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }
         last_run_distance = results[0][0] - results[1].to_i
 
-        last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval
+        last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval_sec
       end
 
       def namespaced_lock_key

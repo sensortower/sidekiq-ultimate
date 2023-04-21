@@ -73,7 +73,7 @@ module Sidekiq
         queues = (@strict ? @queues : @queues.shuffle.uniq) - @exhausted_by_throttling.to_a - @empty_queues.queues
 
         # Avoid calling heavier `paused_queue` if there's nothing to filter out
-        return queues if queues.empty?
+        return [] if queues.empty?
 
         (queues - paused_queues).map { |name| QueueName.new(name) }
       end

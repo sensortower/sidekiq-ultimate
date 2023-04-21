@@ -8,19 +8,20 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
     let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Util } }
 
     it "subscribes to sidekiq startup and shutdown event to set up and shutdown queue refresh" do
-      instance_spy = instance_spy(described_class)
-      allow(described_class).to receive(:instance).and_return(instance_spy)
+      empty_queues_spy = instance_spy(described_class)
+      allow(described_class).to receive(:instance).and_return(empty_queues_spy)
 
       described_class.setup!
+      timer_task = Sidekiq::Ultimate::EmptyQueues::RefreshTimerTask::TASK_CLASS
 
       expect { sidekiq_util.fire_event(:startup) }.
-        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(0).to(1)
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
 
       sleep(1) # Wait for .refresh! to run
 
       expect { sidekiq_util.fire_event(:shutdown) }.
-        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(1).to(0)
-      expect(instance_spy).to have_received(:refresh!)
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(1).to(0)
+      expect(empty_queues_spy).to have_received(:refresh!)
     end
   end
 
@@ -35,7 +36,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
       context "when global lock is free" do
         it "does not update the global list if it was recently updated but updates the local list" do
           instance.instance_variable_set(:@queues, %w[john])
-          allow(Sidekiq::Ultimate::Configuration.instance).to receive(:empty_queues_refresh_interval).and_return(42)
+          allow(Sidekiq::Ultimate::Configuration.instance).to receive(:empty_queues_refresh_interval_sec).and_return(42)
 
           Sidekiq.redis do |r|
             r.set("ultimate:empty_queues_updater:last_run", r.time[0])
