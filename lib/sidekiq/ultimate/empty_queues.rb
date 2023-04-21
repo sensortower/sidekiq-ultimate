@@ -6,6 +6,7 @@ require "singleton"
 
 require "sidekiq/ultimate/configuration"
 require "sidekiq/ultimate/use_exists_question_mark"
+require "sidekiq/ultimate/redis_sscan"
 
 module Sidekiq
   module Ultimate
@@ -84,7 +85,7 @@ module Sidekiq
       end
 
       def fetch_empty_queues(redis)
-        queues = sscan(redis, "queues")
+        queues = Sidekiq::Ultimate::RedisSscan.read(redis, "queues")
 
         queues_statuses =
           redis.pipelined do |p|
@@ -101,7 +102,7 @@ module Sidekiq
       def refresh_local_list!
         Sidekiq.logger.debug { "Refreshing local list" }
 
-        list = Sidekiq.redis { |redis| redis.smembers(KEY) }
+        list = Sidekiq.redis { |redis| Sidekiq::Ultimate::RedisSscan.read(redis, KEY) }
         set_local_list!(list)
       end
 
@@ -141,18 +142,6 @@ module Sidekiq
         last_run_distance = results[0][0] - results[1].to_i
 
         last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval
-      end
-
-      # Taken from sidekiq's code
-      def sscan(conn, key)
-        cursor = "0"
-        result = []
-        loop do
-          cursor, values = conn.sscan(key, cursor)
-          result.push(*values)
-          break if cursor == "0"
-        end
-        result
       end
 
       def namespaced_lock_key
