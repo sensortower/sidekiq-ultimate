@@ -9,6 +9,7 @@ require "sidekiq/ultimate/resurrector/common_constants"
 require "sidekiq/ultimate/resurrector/resurrection_script"
 require "sidekiq/ultimate/configuration"
 require "sidekiq/ultimate/use_exists_question_mark"
+require "sidekiq/ultimate/interval_with_jitter"
 
 module Sidekiq
   module Ultimate
@@ -59,7 +60,7 @@ module Sidekiq
 
             cthulhu = CtulhuTimerTask.new({
               :run_now            => true,
-              :execution_interval => CommonConstants::RESURRECTOR_INTERVAL
+              :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(CommonConstants::RESURRECTOR_INTERVAL)
             }) { resurrect! }
             cthulhu.execute
           end
@@ -75,7 +76,7 @@ module Sidekiq
 
             aed = AedTimerTask.new({
               :run_now            => true,
-              :execution_interval => DEFIBRILLATE_INTERVAL
+              :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(DEFIBRILLATE_INTERVAL)
             }) { defibrillate! }
             aed.execute
           end
