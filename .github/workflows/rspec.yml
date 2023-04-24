@@ -35,6 +35,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         ruby-version: ['2.7.6']
         redis: ['4.1', '4.2', '4.8']

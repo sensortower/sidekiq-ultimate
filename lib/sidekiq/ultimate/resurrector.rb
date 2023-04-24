@@ -8,6 +8,8 @@ require "sidekiq/ultimate/resurrector/lock"
 require "sidekiq/ultimate/resurrector/common_constants"
 require "sidekiq/ultimate/resurrector/resurrection_script"
 require "sidekiq/ultimate/configuration"
+require "sidekiq/ultimate/use_exists_question_mark"
+require "sidekiq/ultimate/interval_with_jitter"
 
 module Sidekiq
   module Ultimate
@@ -19,14 +21,13 @@ module Sidekiq
       DEFIBRILLATE_INTERVAL = 5
       private_constant :DEFIBRILLATE_INTERVAL
 
-      # Redis-rb 4.2.0 renamed `#exists` to `#exists?` and changed behaviour of `#exists` to return integer
-      # https://github.com/redis/redis-rb/blob/master/CHANGELOG.md#420
-      USE_EXISTS_QUESTION_MARK = Gem::Version.new(Redis::VERSION) >= Gem::Version.new("4.2.0")
+      ResurrectorTimerTask = Class.new(Concurrent::TimerTask)
+      HeartbeatTimerTask = Class.new(Concurrent::TimerTask)
 
       class << self
         def setup!
-          register_aed!
-          call_cthulhu!
+          register_process_heartbeat
+          register_resurrector
         end
 
         # go over all sidekiq processes (identities) that were shut down recently, get all their queues and
@@ -51,38 +52,40 @@ module Sidekiq
 
         private
 
-        def call_cthulhu!
-          cthulhu = nil
+        def register_resurrector
+          resurrector_timer_task = nil
 
           Sidekiq.on(:startup) do
-            cthulhu&.shutdown
+            resurrector_timer_task&.shutdown
 
-            cthulhu = Concurrent::TimerTask.execute({
+            resurrector_timer_task = ResurrectorTimerTask.new({
               :run_now            => true,
-              :execution_interval => CommonConstants::RESURRECTOR_INTERVAL
+              :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(CommonConstants::RESURRECTOR_INTERVAL)
             }) { resurrect! }
+            resurrector_timer_task.execute
           end
 
-          Sidekiq.on(:shutdown) { cthulhu&.shutdown }
+          Sidekiq.on(:shutdown) { resurrector_timer_task&.shutdown }
         end
 
-        def register_aed!
-          aed = nil
+        def register_process_heartbeat
+          heartbeat_timer_task = nil
 
           Sidekiq.on(:heartbeat) do
-            aed&.shutdown
+            heartbeat_timer_task&.shutdown
 
-            aed = Concurrent::TimerTask.execute({
+            heartbeat_timer_task = HeartbeatTimerTask.new({
               :run_now            => true,
-              :execution_interval => DEFIBRILLATE_INTERVAL
-            }) { defibrillate! }
+              :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(DEFIBRILLATE_INTERVAL)
+            }) { save_watched_queues }
+            heartbeat_timer_task.execute
           end
 
-          Sidekiq.on(:shutdown) { aed&.shutdown }
+          Sidekiq.on(:shutdown) { heartbeat_timer_task&.shutdown }
         end
 
         # put current list of queues into resurrection candidates
-        def defibrillate!
+        def save_watched_queues
           Sidekiq.redis do |redis|
             log(:debug) { "Defibrillating" }
 
@@ -91,14 +94,14 @@ module Sidekiq
           end
         end
 
-        # list of processes that disappeared after latest #defibrillate!
+        # list of processes that disappeared after latest #save_watched_queues
         def casualties
           Sidekiq.redis do |redis|
             sidekiq_processes = redis.hkeys(CommonConstants::MAIN_KEY)
 
             sidekiq_processes_alive = redis.pipelined do |pipeline|
-              sidekiq_processes.each do |sidekiq_process_id|
-                USE_EXISTS_QUESTION_MARK ? pipeline.exists?(sidekiq_process_id) : pipeline.exists(sidekiq_process_id)
+              sidekiq_processes.each do |process|
+                Sidekiq::Ultimate::UseExistsQuestionMark.use? ? pipeline.exists?(process) : pipeline.exists(process)
               end
             end
 
@@ -113,9 +116,7 @@ module Sidekiq
 
             return [] unless queues
 
-            JSON.parse(queues).map do |q|
-              QueueName.new(q, :identity => identity)
-            end
+            JSON.parse(queues).map { |q| QueueName.new(q, :identity => identity) }
           end
         end
 

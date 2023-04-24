@@ -86,6 +86,34 @@ Sidekiq::Ultimate::Resurrector::Count.read(:job_id => "2647c4fe13acc692326bd4c2"
 => 1
 ```
 
+### Empty Queues Cache Refresh Interval
+
+```ruby
+Sidekiq::Ultimate.setup! do |config|
+  config.empty_queues_cache_refresh_interval_sec = 42
+end
+```
+
+Specifies how often the cache of empty queues should be refreshed.
+In a nutshell, this sets the maximum possible delay between when a job was pushed to previously empty queue and earliest the moment when that new job could be picked up.
+
+**Note:** every sidekiq process maintains its own local cache of empty queues.
+Setting this interval to a low value will increase the number of Redis calls needed to check for empty queues, increasing the total load on Redis.
+
+This setting helps manage the tradeoff between performance penalties and latency needed for reliable fetch.
+Under the hood, Sidekiq's default fetch occurs with [a single Redis `BRPOP` call](https://redis.io/commands/brpop/) which is passes list of all queues to pluck work from.
+In contrast, [reliable fetch uses `LPOPRPUSH`](https://redis.io/commands/rpoplpush/) (or the equivalent `LMOVE` in later Redis versions) to place in progress work into a WIP queue.
+However, `LPOPRPUSH` can only check one source queue to pop from at once, and [no multi-key alternative is available](https://github.com/redis/redis/issues/1785), so multiple Redis calls are needed to pluck work if an empty queue is checked.
+In order to avoid performance penalties for repeated calls to empty queues, Sidekiq Ultimate therefore maintains a list of recently know empty queues which it will avoid polling for work.
+
+Therefore:
+- If your Sidekiq architecture has *a low number of total queues*, the worst case penalty for polling empty queues will be bounded, and it is reasonable to **set a shorter refresh period**.
+- If your Sidekiq architecture has a *high number of total queues*, the worst case penalty for polling empty queues is large, and it is recommended to **set a longer refresh period**.
+- When adjusting this setting:
+    - Check that work is consumed appropriately quickly from high priority queues after they bottom out (after increasing the refresh interval)
+    - Check that backlog work does not accumulate in low priority queues (after decreasing the refresh interval)
+
+
 ---
 
 **NOTICE**

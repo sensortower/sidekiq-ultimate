@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "sidekiq/ultimate/resurrector"
+require "sidekiq/ultimate/use_exists_question_mark"
 
 RSpec.describe Sidekiq::Ultimate::Resurrector do
   let(:identity) { "hostname:pid:123456" }
@@ -11,7 +12,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
   end
 
   def key_exists?(key)
-    if Sidekiq::Ultimate::Resurrector::USE_EXISTS_QUESTION_MARK
+    if Sidekiq::Ultimate::UseExistsQuestionMark.use?
       Sidekiq.redis { |r| r.exists?(key) }
     else
       Sidekiq.redis { |r| r.exists(key) }
@@ -19,8 +20,6 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
   end
 
   describe ".resurrect!" do
-    subject(:resurrect!) { described_class.resurrect! }
-
     let(:identity1) { "hostname1:pid:123456" }
     let(:identity2) { "hostname2:pid:123456" }
     let(:logger) { instance_spy(Logger) }
@@ -76,7 +75,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       end
 
       it "resurrects the job" do
-        resurrect!
+        described_class.resurrect!
 
         jobs_in_queue = Sidekiq.redis { |redis| redis.lrange("queue:queue2", 0, -1) }
         expect(jobs_in_queue).to contain_exactly(job_hash2, job_hash3, job_hash4)
@@ -88,7 +87,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         allow(Sidekiq::Ultimate::Configuration.instance).
           to receive(:on_resurrection).and_return(proc { |*args| resurrections << args })
 
-        resurrect!
+        described_class.resurrect!
 
         expect(resurrections).to contain_exactly(["queue2", 2])
         jobs_in_queue = Sidekiq.redis { |redis| redis.lrange("queue:queue2", 0, -1) }
@@ -99,7 +98,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         allow(Sidekiq::Ultimate::Configuration.instance).
           to receive(:enable_resurrection_counter).and_return(-> { true })
 
-        resurrect!
+        described_class.resurrect!
 
         counter1 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
         counter1_ttl = Sidekiq.redis { |r| r.ttl("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
@@ -116,14 +115,14 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         allow(Sidekiq::Ultimate::Configuration.instance).
           to receive(:enable_resurrection_counter).and_return(-> { false })
 
-        resurrect!
+        described_class.resurrect!
 
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
       end
 
       it "does not increment the resurrection counter when enable_resurrection_counter is not set" do
-        resurrect!
+        described_class.resurrect!
 
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
         expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
@@ -134,7 +133,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         allow(Sidekiq::Ultimate::Configuration.instance).
           to receive(:enable_resurrection_counter).and_return(-> { enable_resurrection_counter })
 
-        resurrect!
+        described_class.resurrect!
 
         counter1 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
         counter2 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }
@@ -142,11 +141,21 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
         expect(counter1).to eq("1")
         expect(counter2).to eq("1")
 
-        Sidekiq.redis(&:clear)
+        # Refresh the state
+        Sidekiq.redis do |r|
+          r.del("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")
+          r.del("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")
+
+          r.lpush("inproc:#{identity2}:queue2", job_hash2)
+          r.lpush("inproc:#{identity2}:queue2", job_hash3)
+
+          r.hset("ultimate:resurrector", identity1, "[\"queue1\",\"queue2\"]")
+          r.hset("ultimate:resurrector", identity2, "[\"queue2\",\"queue3\"]")
+        end
 
         enable_resurrection_counter = false
 
-        resurrect!
+        described_class.resurrect!
 
         counter1 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }
         counter2 = Sidekiq.redis { |r| r.get("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }
@@ -158,6 +167,12 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
   end
 
   describe "setup!" do
+    after do
+      ObjectSpace.each_object(Concurrent::TimerTask).each(&:shutdown)
+
+      Sidekiq.options[:lifecycle_events].each_value(&:clear)
+    end
+
     it "periodically puts current process queues into redis", :redis => true do
       stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
       allow(Sidekiq).to receive(:options).and_return(Sidekiq.options.merge(:queues => %w[queue1 queue2]))
@@ -170,18 +185,35 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
 
       keys = Sidekiq.redis { |redis| redis.hgetall("ultimate:resurrector") }
       expect(keys).to eq({ identity => "[\"queue1\",\"queue2\"]" })
-
-      ObjectSpace.each_object(Concurrent::TimerTask).each(&:shutdown)
     end
 
-    it "unregisters aed on sidekiq shutdown" do
+    it "unregisters heartbeat_timer_task on sidekiq shutdown" do
       stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
       described_class.setup!
+      timer_task = Sidekiq::Ultimate::Resurrector::HeartbeatTimerTask
 
-      sidekiq_util.fire_event(:heartbeat)
+      expect { sidekiq_util.fire_event(:heartbeat) }.
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
 
       expect { sidekiq_util.fire_event(:shutdown) }.
-        to change { ObjectSpace.each_object(Concurrent::TimerTask).count(&:running?) }.from(1).to(0)
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(1).to(0)
+
+      Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
+      sleep(0.5) # Wait for any other timer to run
+
+      expect(key_exists?("ultimate:resurrector")).to be_falsy
+    end
+
+    it "unregisters resurrector_timer_task on sidekiq shutdown" do
+      stub_const("Sidekiq::Ultimate::Resurrector::RESURRECTOR_INTERVAL", 0.01)
+      described_class.setup!
+      timer_task = Sidekiq::Ultimate::Resurrector::ResurrectorTimerTask
+
+      expect { sidekiq_util.fire_event(:startup) }.
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
+
+      expect { sidekiq_util.fire_event(:shutdown) }.
+        to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(1).to(0)
 
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
       sleep(0.5) # Wait for any other timer to run

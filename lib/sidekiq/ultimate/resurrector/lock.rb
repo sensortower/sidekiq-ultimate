@@ -20,19 +20,31 @@ module Sidekiq
         class << self
           def acquire
             Sidekiq.redis do |redis|
-              Redlock::Client.new([redis]).lock(LOCK_KEY, LOCK_TTL) do |locked|
+              break if resurrected_recently?(redis) # Cheap check since lock will not be free most of the time
+
+              Redlock::Client.new([redis], :retry_count => 0).lock(namespaced_lock_key, LOCK_TTL) do |locked|
                 break unless locked
-
-                results  = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }
-                distance = results[0][0] - results[1].to_i
-
-                break unless CommonConstants::RESURRECTOR_INTERVAL < distance
+                break if resurrected_recently?(redis)
 
                 yield
 
                 redis.set(LAST_RUN_KEY, redis.time.first)
               end
             end
+          end
+
+          def namespaced_lock_key
+            return @namespaced_lock_key if defined?(@namespaced_lock_key)
+
+            namespace = Sidekiq.redis { |redis| redis.namespace if redis.respond_to?(:namespace) }
+            @namespaced_lock_key = "#{namespace}:#{LOCK_KEY}"
+          end
+
+          def resurrected_recently?(redis)
+            results  = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }
+            distance = results[0][0] - results[1].to_i
+
+            distance < CommonConstants::RESURRECTOR_INTERVAL
           end
         end
       end
