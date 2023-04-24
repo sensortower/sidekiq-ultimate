@@ -8,10 +8,10 @@ module Sidekiq
 
       class << self
         # Returns execution interval with jitter.
-        # Jitter is +- RANDOM_OFFSET_RATION from the original value.
+        # Jitter is +- RANDOM_OFFSET_RATIO from the original value.
         def call(interval)
-          jitter_ratio = (rand(0..RANDOM_OFFSET_RATIO) * 2) - RANDOM_OFFSET_RATIO
-          interval + (jitter_ratio * interval)
+          jitter_factor = 1 + rand(-RANDOM_OFFSET_RATIO..RANDOM_OFFSET_RATIO) 
+          jitter_factor * interval
         end
       end
     end

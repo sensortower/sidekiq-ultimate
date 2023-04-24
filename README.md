@@ -86,7 +86,7 @@ Sidekiq::Ultimate::Resurrector::Count.read(:job_id => "2647c4fe13acc692326bd4c2"
 => 1
 ```
 
-### Empty queues list refresh interval
+### Empty Queues List Refresh Interval
 
 ```ruby
 Sidekiq::Ultimate.setup! do |config|

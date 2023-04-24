@@ -18,8 +18,8 @@ module Sidekiq
       #  end
       attr_accessor :on_resurrection
 
-      # resurrection counter can be enabled to count how many times a job was resurrected.
       # If `enable_resurrection_counter` setting is enabled, on each resurrection event, a counter is increased.
+      # This is useful for telemetry purposes in order to understand how often jobs are resurrected
       # Counter value is stored in redis by jid and has expiration time 24 hours.
       # @return [Boolean]
       attr_accessor :enable_resurrection_counter

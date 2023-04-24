@@ -44,11 +44,11 @@ module Sidekiq
         Sidekiq.on(:shutdown) { refresher&.shutdown }
       end
 
-      # It updates the global list of empty queues and the local list of empty queues.
-      # During the update, the global list is locked to prevent other processes from updating it since this operation
-      # is expensive.
-      # The local list is updated anyway. Either by using the fresh list fetched for global list update or by using
-      # existing global list.
+      # Attempts to update the global cache of empty queues by first acquiring a global lock
+      # If the lock is acquired, it brute force generates an accurate list of currently empty queues and then writes this 
+      # updated list to the global cache
+      # The local queue cache is always updated as a result of this operation, either by using the recently generated 
+      # list or fetching the most recent list from the global cache
       #
       # @return [Boolean] true if local list was updated
       def refresh!
