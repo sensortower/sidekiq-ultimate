@@ -187,10 +187,10 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       expect(keys).to eq({ identity => "[\"queue1\",\"queue2\"]" })
     end
 
-    it "unregisters aed on sidekiq shutdown" do
+    it "unregisters heartbeat_timer_task on sidekiq shutdown" do
       stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
       described_class.setup!
-      timer_task = Sidekiq::Ultimate::Resurrector::AedTimerTask
+      timer_task = Sidekiq::Ultimate::Resurrector::HeartbeatTimerTask
 
       expect { sidekiq_util.fire_event(:heartbeat) }.
         to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)
@@ -204,10 +204,10 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       expect(key_exists?("ultimate:resurrector")).to be_falsy
     end
 
-    it "unregisters cthulhu on sidekiq shutdown" do
+    it "unregisters resurrector_timer_task on sidekiq shutdown" do
       stub_const("Sidekiq::Ultimate::Resurrector::RESURRECTOR_INTERVAL", 0.01)
       described_class.setup!
-      timer_task = Sidekiq::Ultimate::Resurrector::CtulhuTimerTask
+      timer_task = Sidekiq::Ultimate::Resurrector::ResurrectorTimerTask
 
       expect { sidekiq_util.fire_event(:startup) }.
         to change { ObjectSpace.each_object(timer_task).count(&:running?) }.from(0).to(1)

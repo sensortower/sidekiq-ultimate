@@ -21,13 +21,13 @@ module Sidekiq
       DEFIBRILLATE_INTERVAL = 5
       private_constant :DEFIBRILLATE_INTERVAL
 
-      CtulhuTimerTask = Class.new(Concurrent::TimerTask)
-      AedTimerTask = Class.new(Concurrent::TimerTask)
+      ResurrectorTimerTask = Class.new(Concurrent::TimerTask)
+      HeartbeatTimerTask = Class.new(Concurrent::TimerTask)
 
       class << self
         def setup!
-          register_aed!
-          call_cthulhu!
+          register_process_heartbeat
+          register_resurrector
         end
 
         # go over all sidekiq processes (identities) that were shut down recently, get all their queues and
@@ -52,40 +52,40 @@ module Sidekiq
 
         private
 
-        def call_cthulhu!
-          cthulhu = nil
+        def register_resurrector
+          resurrector_timer_task = nil
 
           Sidekiq.on(:startup) do
-            cthulhu&.shutdown
+            resurrector_timer_task&.shutdown
 
-            cthulhu = CtulhuTimerTask.new({
+            resurrector_timer_task = ResurrectorTimerTask.new({
               :run_now            => true,
               :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(CommonConstants::RESURRECTOR_INTERVAL)
             }) { resurrect! }
-            cthulhu.execute
+            resurrector_timer_task.execute
           end
 
-          Sidekiq.on(:shutdown) { cthulhu&.shutdown }
+          Sidekiq.on(:shutdown) { resurrector_timer_task&.shutdown }
         end
 
-        def register_aed!
-          aed = nil
+        def register_process_heartbeat
+          heartbeat_timer_task = nil
 
           Sidekiq.on(:heartbeat) do
-            aed&.shutdown
+            heartbeat_timer_task&.shutdown
 
-            aed = AedTimerTask.new({
+            heartbeat_timer_task = HeartbeatTimerTask.new({
               :run_now            => true,
               :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(DEFIBRILLATE_INTERVAL)
-            }) { defibrillate! }
-            aed.execute
+            }) { save_watched_queues }
+            heartbeat_timer_task.execute
           end
 
-          Sidekiq.on(:shutdown) { aed&.shutdown }
+          Sidekiq.on(:shutdown) { heartbeat_timer_task&.shutdown }
         end
 
         # put current list of queues into resurrection candidates
-        def defibrillate!
+        def save_watched_queues
           Sidekiq.redis do |redis|
             log(:debug) { "Defibrillating" }
 
@@ -94,7 +94,7 @@ module Sidekiq
           end
         end
 
-        # list of processes that disappeared after latest #defibrillate!
+        # list of processes that disappeared after latest #save_watched_queues
         def casualties
           Sidekiq.redis do |redis|
             sidekiq_processes = redis.hkeys(CommonConstants::MAIN_KEY)

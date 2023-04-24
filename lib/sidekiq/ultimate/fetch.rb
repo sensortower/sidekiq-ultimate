@@ -7,6 +7,7 @@ require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector"
 require "sidekiq/ultimate/unit_of_work"
 require "sidekiq/ultimate/empty_queues"
+require "sidekiq/ultimate/configuration"
 
 module Sidekiq
   module Ultimate
@@ -14,9 +15,6 @@ module Sidekiq
     class Fetch
       # Delay between fetch retries in case of no job received.
       TIMEOUT = 2
-
-      # Delay between queue poll attempts if it's last job was throttled.
-      THROTTLE_TIMEOUT = 15
 
       def initialize(options)
         @exhausted_by_throttling = ExpirableSet.new
@@ -37,7 +35,9 @@ module Sidekiq
         if work&.throttled?
           work.requeue_throttled
 
-          @exhausted_by_throttling.add(work.queue_name, :ttl => THROTTLE_TIMEOUT)
+          @exhausted_by_throttling.add(
+            work.queue_name, :ttl => Sidekiq::Ultimate::Configuration.instance.throttled_fetch_timeout_sec
+          )
 
           return nil
         end

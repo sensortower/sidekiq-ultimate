@@ -86,18 +86,18 @@ Sidekiq::Ultimate::Resurrector::Count.read(:job_id => "2647c4fe13acc692326bd4c2"
 => 1
 ```
 
-### Empty Queues List Refresh Interval
+### Empty Queues Cache Refresh Interval
 
 ```ruby
 Sidekiq::Ultimate.setup! do |config|
-  config.empty_queues_refresh_interval_sec = 42
+  config.empty_queues_cache_refresh_interval_sec = 42
 end
 ```
 
-Specifies how often the list of empty queues should be refreshed.
+Specifies how often the cache of empty queues should be refreshed.
 In a nutshell, this sets the maximum possible delay between when a job was pushed to previously empty queue and earliest the moment when that new job could be picked up.
 
-**Note:** every worker maintains its own local list of empty queues.
+**Note:** every sidekiq process maintains its own local cache of empty queues.
 Setting this interval to a low value will increase the number of Redis calls needed to check for empty queues, increasing the total load on Redis.
 
 This setting helps manage the tradeoff between performance penalties and latency needed for reliable fetch.

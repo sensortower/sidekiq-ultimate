@@ -5,15 +5,14 @@ require "singleton"
 
 require "sidekiq/ultimate/configuration"
 require "sidekiq/ultimate/use_exists_question_mark"
-require "sidekiq/ultimate/redis_sscan"
 require "sidekiq/ultimate/empty_queues/refresh_timer_task"
 
 module Sidekiq
   module Ultimate
-    # Maintains a list of empty queues. It has a global list and a local list.
-    # The global list is stored in redis and updated periodically. The local list is updated either by using the fresh
-    # list fetched for global list update or by using existing global list.
-    # Only one process can update the global list at a time.
+    # Maintains a cache of empty queues. It has a global cache and a local cache.
+    # The global cache is stored in redis and updated periodically. The local cache is updated either by using the fresh
+    # cache fetched after global cache update or by using existing global cache.
+    # Only one process can update the global cache at a time.
     class EmptyQueues
       include Singleton
 
@@ -30,59 +29,60 @@ module Sidekiq
         super
       end
 
-      # Sets up automatic empty queues list updater.
+      # Sets up automatic empty queues cache updater.
       # It will call #refresh! every
-      # `Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval_sec` seconds
+      # `Sidekiq::Ultimate::Configuration.instance.empty_queues_cache_refresh_interval_sec` seconds
       def self.setup!
-        refresher = nil
+        refresher_timer_task = nil
 
         Sidekiq.on(:startup) do
-          refresher&.shutdown
-          refresher = RefreshTimerTask.setup!(self)
+          refresher_timer_task&.shutdown
+          refresher_timer_task = RefreshTimerTask.setup!(self)
         end
 
-        Sidekiq.on(:shutdown) { refresher&.shutdown }
+        Sidekiq.on(:shutdown) { refresher_timer_task&.shutdown }
       end
 
       # Attempts to update the global cache of empty queues by first acquiring a global lock
-      # If the lock is acquired, it brute force generates an accurate list of currently empty queues and then writes this 
-      # updated list to the global cache
-      # The local queue cache is always updated as a result of this operation, either by using the recently generated 
+      # If the lock is acquired, it brute force generates an accurate list of currently empty queues and
+      # then writes the updated list to the global cache
+      # The local queue cache is always updated as a result of this operation, either by using the recently generated
       # list or fetching the most recent list from the global cache
       #
-      # @return [Boolean] true if local list was updated
+      # @return [Boolean] true if local cache was updated
       def refresh!
         return false unless local_lock.try_lock
 
         begin
-          refresh_global_list! || refresh_local_list!
+          refresh_global_cache! || refresh_local_cache
         ensure
           local_lock.unlock
         end
       rescue => e
-        Sidekiq.logger.error { "Empty queues list update failed: #{e}" }
+        Sidekiq.logger.error { "Empty queues cache update failed: #{e}" }
         raise
       end
 
       private
 
-      # Automatically updates local list if global list was updated
-      # @return [Boolean] true if list was updated
-      def refresh_global_list!
-        Sidekiq.logger.debug { "Refreshing global list" }
+      # Automatically updates local cache if global cache was updated
+      # @return [Boolean] true if cache was updated
+      def refresh_global_cache!
+        Sidekiq.logger.debug { "Refreshing global cache" }
 
         global_lock do
           Sidekiq.redis do |redis|
-            empty_queues = fetch_empty_queues(redis)
+            empty_queues = generate_empty_queues(redis)
 
-            set_global_list!(redis, empty_queues)
-            set_local_list!(empty_queues)
+            update_global_cache(redis, empty_queues)
+            update_local_cache(empty_queues)
           end
         end
       end
 
-      def fetch_empty_queues(redis)
-        queues = Sidekiq::Ultimate::RedisSscan.read(redis, "queues")
+      def generate_empty_queues(redis)
+        # Cursor is not atomic, so there may be duplicates because of concurrent update operations
+        queues = Sidekiq.redis { |r| r.sscan_each("queues").to_a.uniq }
 
         queues_statuses =
           redis.pipelined do |p|
@@ -96,15 +96,16 @@ module Sidekiq
         queues.zip(queues_statuses).reject { |(_, exists)| exists }.map(&:first)
       end
 
-      def refresh_local_list!
-        Sidekiq.logger.debug { "Refreshing local list" }
+      def refresh_local_cache
+        Sidekiq.logger.debug { "Refreshing local cache" }
 
-        list = Sidekiq.redis { |redis| Sidekiq::Ultimate::RedisSscan.read(redis, KEY) }
-        set_local_list!(list)
+        # Cursor is not atomic, so there may be duplicates because of concurrent update operations
+        list = Sidekiq.redis { |redis| redis.sscan_each(KEY).to_a.uniq }
+        update_local_cache(list)
       end
 
-      def set_global_list!(redis, list)
-        Sidekiq.logger.debug { "Setting global list: #{list}" }
+      def update_global_cache(redis, list)
+        Sidekiq.logger.debug { "Setting global cache: #{list}" }
 
         redis.multi do |multi|
           multi.del(KEY)
@@ -112,8 +113,8 @@ module Sidekiq
         end
       end
 
-      def set_local_list!(list) # rubocop:disable Naming/AccessorMethodName
-        Sidekiq.logger.debug { "Setting local list: #{list}" }
+      def update_local_cache(list)
+        Sidekiq.logger.debug { "Setting local cache: #{list}" }
 
         @queues = list
       end
@@ -138,7 +139,7 @@ module Sidekiq
         results = redis.pipelined { |pipeline| [pipeline.time, pipeline.get(LAST_RUN_KEY)] }
         last_run_distance = results[0][0] - results[1].to_i
 
-        last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval_sec
+        last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_cache_refresh_interval_sec
       end
 
       def namespaced_lock_key

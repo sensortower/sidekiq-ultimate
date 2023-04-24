@@ -34,9 +34,10 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
 
     context "when local lock is free" do
       context "when global lock is free" do
-        it "does not update the global list if it was recently updated but updates the local list" do
+        it "does not update the global cache if it was recently updated but updates the local cache" do
           instance.instance_variable_set(:@queues, %w[john])
-          allow(Sidekiq::Ultimate::Configuration.instance).to receive(:empty_queues_refresh_interval_sec).and_return(42)
+          allow(Sidekiq::Ultimate::Configuration.instance).
+            to receive(:empty_queues_cache_refresh_interval_sec).and_return(42)
 
           Sidekiq.redis do |r|
             r.set("ultimate:empty_queues_updater:last_run", r.time[0])
@@ -53,7 +54,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           end
         end
 
-        it "updates the global list and local list of empty queues" do
+        it "updates the global cache and local cache of empty queues" do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
@@ -68,7 +69,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           end
         end
 
-        it "updates the global list and local list if there are no empty queues" do
+        it "updates the global cache and local cache if there are no empty queues" do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
@@ -85,7 +86,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
       end
 
       context "when global lock is not free" do
-        it "does not update the global list but updates the local list to match global list" do
+        it "does not update the global cache but updates the local cache to match global cache" do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
@@ -110,7 +111,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
         allow(instance).to receive(:local_lock).and_return(local_lock)
       end
 
-      it "does not refresh the lists" do
+      it "does not refresh the caches" do
         instance.instance_variable_set(:@queues, %w[john])
 
         Sidekiq.redis do |r|

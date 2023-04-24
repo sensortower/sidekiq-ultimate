@@ -12,7 +12,7 @@ module Sidekiq
 
         class << self
           def setup!(empty_queues_class)
-            interval = Sidekiq::Ultimate::Configuration.instance.empty_queues_refresh_interval_sec
+            interval = Sidekiq::Ultimate::Configuration.instance.empty_queues_cache_refresh_interval_sec
             task = TASK_CLASS.new({
               :run_now            => true,
               :execution_interval => Sidekiq::Ultimate::IntervalWithJitter.call(interval)
