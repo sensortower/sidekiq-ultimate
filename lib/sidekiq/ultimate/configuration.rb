@@ -29,7 +29,7 @@ module Sidekiq
       # the moment when that new job is picked up.
       # Note that every sidekiq process needs to maintain its own local cache of empty queues. Setting this interval
       # to a low values will increase the number of redis calls and will increase the load on redis.
-      # @return [Integer] interval in seconds to refresh the cache of empty queues
+      # @return [Numeric] interval in seconds to refresh the cache of empty queues
       attr_reader :empty_queues_cache_refresh_interval_sec
 
       DEFAULT_EMPTY_QUEUES_CACHE_REFRESH_INTERVAL_SEC = 30
