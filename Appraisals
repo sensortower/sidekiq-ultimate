@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-appraise "redis-4.1" do
-  gem "redis", "~> 4.1.0"
-end
+REDIS_VERSIONS = %w[4.1.0 4.2.0 4.8.0].freeze
+SIDEKIQ_VERSIONS = %w[5.2.0 6.0.0].freeze
 
-appraise "redis-4.2" do
-  gem "redis", "~> 4.2.0"
-end
+version_combinations = REDIS_VERSIONS.product(SIDEKIQ_VERSIONS)
 
-appraise "redis-4.8" do
-  gem "redis", "~> 4.8.0"
+version_combinations.each do |redis_version, sidekiq_version|
+  appraise "redis_#{redis_version}_sidekiq_#{sidekiq_version}" do
+    gem "redis", "~> #{redis_version}"
+    gem "sidekiq", "~> #{sidekiq_version}"
+  end
 end
