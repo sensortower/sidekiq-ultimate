@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "sidekiq/ultimate/resurrector"
-require "sidekiq/ultimate/use_exists_question_mark"
 
 RSpec.describe Sidekiq::Ultimate::Resurrector do
   let(:identity) { "hostname:pid:123456" }
@@ -9,14 +8,6 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
 
   before do
     allow(described_class).to receive(:current_process_identity).and_return(identity)
-  end
-
-  def key_exists?(key)
-    if Sidekiq::Ultimate::UseExistsQuestionMark.use?
-      Sidekiq.redis { |r| r.exists?(key) }
-    else
-      Sidekiq.redis { |r| r.exists(key) }
-    end
   end
 
   describe ".resurrect!" do
@@ -117,15 +108,15 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
 
         described_class.resurrect!
 
-        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
-        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
+        expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }).to be_falsy
+        expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }).to be_falsy
       end
 
       it "does not increment the resurrection counter when enable_resurrection_counter is not set" do
         described_class.resurrect!
 
-        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2")).to be_falsy
-        expect(key_exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3")).to be_falsy
+        expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c2") }).to be_falsy
+        expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector:counter:jid:2647c4fe13acc692326bd4c3") }).to be_falsy
       end
 
       it "executes resurrection_counter Proc on each resurrection event" do
@@ -201,7 +192,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
       sleep(0.5) # Wait for any other timer to run
 
-      expect(key_exists?("ultimate:resurrector")).to be_falsy
+      expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector") }).to be_falsy
     end
 
     it "unregisters resurrector_timer_task on sidekiq shutdown" do
@@ -218,7 +209,7 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
       Sidekiq.redis { |redis| redis.del("ultimate:resurrector") }
       sleep(0.5) # Wait for any other timer to run
 
-      expect(key_exists?("ultimate:resurrector")).to be_falsy
+      expect(Sidekiq.redis { |r| r.exists?("ultimate:resurrector") }).to be_falsy
     end
   end
 end

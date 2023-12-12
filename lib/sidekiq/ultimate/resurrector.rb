@@ -8,7 +8,6 @@ require "sidekiq/ultimate/resurrector/lock"
 require "sidekiq/ultimate/resurrector/common_constants"
 require "sidekiq/ultimate/resurrector/resurrection_script"
 require "sidekiq/ultimate/configuration"
-require "sidekiq/ultimate/use_exists_question_mark"
 require "sidekiq/ultimate/interval_with_jitter"
 
 module Sidekiq
@@ -101,7 +100,7 @@ module Sidekiq
 
             sidekiq_processes_alive = redis.pipelined do |pipeline|
               sidekiq_processes.each do |process|
-                Sidekiq::Ultimate::UseExistsQuestionMark.use? ? pipeline.exists?(process) : pipeline.exists(process)
+                pipeline.exists?(process)
               end
             end
 

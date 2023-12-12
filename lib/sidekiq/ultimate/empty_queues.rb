@@ -4,7 +4,6 @@ require "redlock"
 require "singleton"
 
 require "sidekiq/ultimate/configuration"
-require "sidekiq/ultimate/use_exists_question_mark"
 require "sidekiq/ultimate/empty_queues/refresh_timer_task"
 
 module Sidekiq
@@ -87,9 +86,7 @@ module Sidekiq
         queues_statuses =
           redis.pipelined do |p|
             queues.each do |queue|
-              pending_queue = QueueName.new(queue).pending
-
-              Sidekiq::Ultimate::UseExistsQuestionMark.use? ? p.exists?(pending_queue) : p.exists(pending_queue)
+              p.exists?(QueueName.new(queue).pending)
             end
           end
 
