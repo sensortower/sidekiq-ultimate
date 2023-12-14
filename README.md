@@ -18,7 +18,7 @@ extension one will need. :D
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "sidekiq-ultimate", ">= 0.0.1.alpha"
+gem "sidekiq-ultimate"
 ```
 
 And then execute:
@@ -134,11 +134,7 @@ This library aims to support and is tested against the following Ruby and Redis 
   * 2.7.x
 
 * [redis-rb](https://github.com/redis/redis-rb)
-  * 4.x
-
-* [redis-namespace](https://github.com/resque/redis-namespace)
-  * 1.6
-
+  * 4.2+
 
 If something doesn't work on one of these versions, it's a bug.
 

@@ -121,7 +121,7 @@ module Sidekiq
         Sidekiq.redis do |redis|
           break false if skip_update?(redis) # Cheap check since lock will not be free most of the time
 
-          Redlock::Client.new([redis], :retry_count => 0).lock(namespaced_lock_key, 30_000) do |locked|
+          Redlock::Client.new([redis], :retry_count => 0).lock(LOCK_KEY, 30_000) do |locked|
             break false unless locked
             break false if skip_update?(redis)
 
@@ -137,13 +137,6 @@ module Sidekiq
         last_run_distance = results[0][0] - results[1].to_i
 
         last_run_distance < Sidekiq::Ultimate::Configuration.instance.empty_queues_cache_refresh_interval_sec
-      end
-
-      def namespaced_lock_key
-        return @namespaced_lock_key if defined?(@namespaced_lock_key)
-
-        namespace = Sidekiq.redis { |redis| redis.namespace if redis.respond_to?(:namespace) }
-        @namespaced_lock_key = "#{namespace}:#{LOCK_KEY}"
       end
     end
   end

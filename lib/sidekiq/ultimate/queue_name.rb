@@ -29,8 +29,7 @@ module Sidekiq
 
       # Create a new QueueName instance.
       #
-      # @param normalized [#to_s] Normalized (without any namespaces or `queue:`
-      #   prefixes) queue name.
+      # @param normalized [#to_s] Normalized (without `queue:` prefixes) queue name.
       # @param identity [#to_s] Sidekiq process identity.
       def initialize(normalized, identity: Helper.identity)
         @normalized = -normalized.to_s

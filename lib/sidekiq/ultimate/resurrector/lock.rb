@@ -22,7 +22,7 @@ module Sidekiq
             Sidekiq.redis do |redis|
               break if resurrected_recently?(redis) # Cheap check since lock will not be free most of the time
 
-              Redlock::Client.new([redis], :retry_count => 0).lock(namespaced_lock_key, LOCK_TTL) do |locked|
+              Redlock::Client.new([redis], :retry_count => 0).lock(LOCK_KEY, LOCK_TTL) do |locked|
                 break unless locked
                 break if resurrected_recently?(redis)
 
@@ -31,13 +31,6 @@ module Sidekiq
                 redis.set(LAST_RUN_KEY, redis.time.first)
               end
             end
-          end
-
-          def namespaced_lock_key
-            return @namespaced_lock_key if defined?(@namespaced_lock_key)
-
-            namespace = Sidekiq.redis { |redis| redis.namespace if redis.respond_to?(:namespace) }
-            @namespaced_lock_key = "#{namespace}:#{LOCK_KEY}"
           end
 
           def resurrected_recently?(redis)

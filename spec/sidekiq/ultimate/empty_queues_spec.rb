@@ -90,7 +90,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
-            Redlock::Client.new([r]).lock("#{Sidekiq.redis(&:namespace)}:ultimate:empty_queues_updater:lock", 30_000)
+            Redlock::Client.new([r]).lock("ultimate:empty_queues_updater:lock", 30_000)
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
             r.sadd("queues", %w[john ringo paul])

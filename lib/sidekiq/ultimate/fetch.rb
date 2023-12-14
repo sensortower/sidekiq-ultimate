@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "sidekiq"
 require "sidekiq/throttled"
 
 require "sidekiq/ultimate/expirable_set"
@@ -50,7 +51,9 @@ module Sidekiq
       end
 
       def self.setup!
-        Sidekiq.options[:fetch] = self
+        fetcher = new(Sidekiq.options)
+
+        Sidekiq.options[:fetch] = fetcher
         Resurrector.setup!
         EmptyQueues.setup!
       end
