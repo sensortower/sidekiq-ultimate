@@ -24,3 +24,6 @@ group :test do
 end
 
 gemspec
+
+gem "sidekiq-throttled", "0.18.0", :github => "ixti/sidekiq-throttled",
+                                   :ref    => "7af026164c37e75154a3f6fccad34b7ef5b854cd"

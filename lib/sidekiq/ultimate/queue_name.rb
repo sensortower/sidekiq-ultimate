@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "sidekiq/util"
+require "sidekiq/component"
 
 module Sidekiq
   module Ultimate
@@ -14,7 +14,7 @@ module Sidekiq
       private_constant :QUEUE_PREFIX_RE
 
       # Internal helper context.
-      Helper = Module.new { extend Sidekiq::Util }
+      Helper = Module.new { extend Sidekiq::Component }
       private_constant :Helper
 
       # Original stringified queue name.

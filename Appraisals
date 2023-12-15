@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-REDIS_VERSIONS = %w[4.2.0 4.8.0].freeze
-SIDEKIQ_VERSIONS = %w[6.2.0].freeze
+REDIS_VERSIONS = %w[4.8.0].freeze
+SIDEKIQ_VERSIONS = %w[6.5.12].freeze
 
 version_combinations = REDIS_VERSIONS.product(SIDEKIQ_VERSIONS)
 

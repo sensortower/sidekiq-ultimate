@@ -1,10 +1,22 @@
 # frozen_string_literal: true
 
 require "sidekiq/ultimate/resurrector"
+require "sidekiq"
+require "sidekiq/component"
 
 RSpec.describe Sidekiq::Ultimate::Resurrector do
   let(:identity) { "hostname:pid:123456" }
-  let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Util } }
+  let(:sidekiq_util) do
+    klass = Class.new do
+      include Sidekiq::Component
+
+      attr_writer :config
+    end
+
+    util_instance = klass.new
+    util_instance.config = Sidekiq
+    util_instance
+  end
 
   before do
     allow(described_class).to receive(:current_process_identity).and_return(identity)
@@ -161,12 +173,12 @@ RSpec.describe Sidekiq::Ultimate::Resurrector do
     after do
       ObjectSpace.each_object(Concurrent::TimerTask).each(&:shutdown)
 
-      Sidekiq.options[:lifecycle_events].each_value(&:clear)
+      Sidekiq[:lifecycle_events].each_value(&:clear)
     end
 
     it "periodically puts current process queues into redis", :redis => true do
       stub_const("Sidekiq::Ultimate::Resurrector::DEFIBRILLATE_INTERVAL", 0.01)
-      allow(Sidekiq).to receive(:options).and_return(Sidekiq.options.merge(:queues => %w[queue1 queue2]))
+      Sidekiq[:queues] = %w[queue1 queue2]
 
       described_class.setup!
 

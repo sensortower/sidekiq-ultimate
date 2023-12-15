@@ -3,6 +3,7 @@
 require "redis_prescription"
 require "concurrent/timer_task"
 
+require "sidekiq/component"
 require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/resurrector/lock"
 require "sidekiq/ultimate/resurrector/common_constants"
@@ -46,7 +47,7 @@ module Sidekiq
         end
 
         def current_process_identity
-          @current_process_identity ||= Object.new.tap { |o| o.extend Sidekiq::Util }.identity
+          @current_process_identity ||= Object.new.tap { |o| o.extend Sidekiq::Component }.identity
         end
 
         private
@@ -88,7 +89,7 @@ module Sidekiq
           Sidekiq.redis do |redis|
             log(:debug) { "Defibrillating" }
 
-            queues = JSON.dump(Sidekiq.options[:queues].uniq)
+            queues = JSON.dump(Sidekiq[:queues].uniq)
             redis.hset(CommonConstants::MAIN_KEY, current_process_identity, queues)
           end
         end

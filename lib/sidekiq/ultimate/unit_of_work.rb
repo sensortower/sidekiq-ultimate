@@ -89,6 +89,8 @@ module Sidekiq
 
       private
 
+      # If the jobs was in the inproc queue, then delete it from there and
+      # push the job back to the queue using `command`.
       def __requeue__(command)
         @mutex.synchronize do
           return if @requeued || @acked

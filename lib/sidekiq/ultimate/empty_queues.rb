@@ -4,6 +4,7 @@ require "redlock"
 require "singleton"
 
 require "sidekiq/ultimate/configuration"
+require "sidekiq/ultimate/queue_name"
 require "sidekiq/ultimate/empty_queues/refresh_timer_task"
 
 module Sidekiq

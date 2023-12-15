@@ -11,8 +11,9 @@ gem "rubocop", "~> 1.50.2", require: false
 gem "rubocop-performance", "~> 1.17.1", require: false
 gem "rubocop-rake", "~> 0.6.0", require: false
 gem "rubocop-rspec", "~> 2.20.0", require: false
+gem "sidekiq-throttled", "0.18.0", github: "ixti/sidekiq-throttled", ref: "7af026164c37e75154a3f6fccad34b7ef5b854cd"
 gem "redis", "~> 4.8.0"
-gem "sidekiq", "~> 6.2.0"
+gem "sidekiq", "~> 6.5.12"
 
 group :development do
   gem "guard", require: false
