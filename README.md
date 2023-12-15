@@ -134,7 +134,7 @@ This library aims to support and is tested against the following Ruby and Redis 
   * 2.7.x
 
 * [redis-rb](https://github.com/redis/redis-rb)
-  * 4.2+
+  * 4.8
 
 If something doesn't work on one of these versions, it's a bug.
 

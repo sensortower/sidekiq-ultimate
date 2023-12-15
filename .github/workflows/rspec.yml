@@ -38,8 +38,8 @@ jobs:
       fail-fast: false
       matrix:
         ruby-version: ['2.7.6']
-        redis: ['4.1.0', '4.2.0', '4.8.0']
-        sidekiq: ['5.2.0', '6.0.0']
+        redis: ['4.8.0']
+        sidekiq: ['6.5.0']
     env:
       BUNDLE_GEMFILE: gemfiles/redis_${{ matrix.redis }}_sidekiq_${{ matrix.sidekiq }}.gemfile
       BUNDLE_WITHOUT: development

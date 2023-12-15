@@ -6,7 +6,7 @@ redis documentation. In short fetch will look like this:
 
 ``` ruby
 COOLDOWN = 2
-IDENTITY = Object.new.tap { |o| o.extend Sidekiq::Util }.identity
+IDENTITY = Object.new.tap { |o| o.extend Sidekiq::Component }.identity
 
 def retrieve
   Sidekiq.redis do
