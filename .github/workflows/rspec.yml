@@ -38,19 +38,21 @@ jobs:
       fail-fast: false
       matrix:
         ruby-version: ['2.7.6']
-        redis: ['4.1.0', '4.2.0', '4.8.0']
-        sidekiq: ['5.2.0', '6.0.0']
+        redis: ['4.8.0']
+        sidekiq: ['6.5.0']
     env:
       BUNDLE_GEMFILE: gemfiles/redis_${{ matrix.redis }}_sidekiq_${{ matrix.sidekiq }}.gemfile
       BUNDLE_WITHOUT: development
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ matrix.ruby-version }}
-        bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-    - run: docker-compose up -d
-    - run: bundle exec rake spec
-    - uses: codecov/codecov-action@v3
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+      - run: docker-compose up -d
+      - name: Run specs and generate coverage report
+        run: bundle exec rake spec
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3

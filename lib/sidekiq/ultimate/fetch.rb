@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "sidekiq"
 require "sidekiq/throttled"
 
 require "sidekiq/ultimate/expirable_set"
@@ -45,12 +46,15 @@ module Sidekiq
         work
       end
 
-      def self.bulk_requeue(units, _options)
+      # TODO: Requeue in batch or at least using pipeline
+      def bulk_requeue(units, _options)
         units.each(&:requeue)
       end
 
       def self.setup!
-        Sidekiq.options[:fetch] = self
+        fetcher = new(Sidekiq)
+
+        Sidekiq[:fetch] = fetcher
         Resurrector.setup!
         EmptyQueues.setup!
       end

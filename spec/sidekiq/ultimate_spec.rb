@@ -19,7 +19,7 @@ RSpec.describe Sidekiq::Ultimate do
 
       described_class.setup!
 
-      expect(Sidekiq.options[:fetch]).to eq Sidekiq::Ultimate::Fetch
+      expect(Sidekiq[:fetch]).to be_instance_of(Sidekiq::Ultimate::Fetch)
       expect(communicator).to have_received(:setup!)
       expect(queues_pauser).to have_received(:setup!)
       expect(resurrector).to have_received(:setup!)

@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require "sidekiq/ultimate/queue_name"
+require "sidekiq/component"
 
 RSpec.describe Sidekiq::Ultimate::QueueName do
   let(:process_identity) do
-    Object.new.tap { |o| o.extend Sidekiq::Util }.identity
+    Object.new.tap { |o| o.extend Sidekiq::Component }.identity
   end
 
   it "can be used in arrays manipulations" do

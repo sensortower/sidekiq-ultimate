@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "sidekiq/util"
+require "sidekiq/component"
 
 module Sidekiq
   module Ultimate
@@ -14,7 +14,7 @@ module Sidekiq
       private_constant :QUEUE_PREFIX_RE
 
       # Internal helper context.
-      Helper = Module.new { extend Sidekiq::Util }
+      Helper = Module.new { extend Sidekiq::Component }
       private_constant :Helper
 
       # Original stringified queue name.
@@ -29,8 +29,7 @@ module Sidekiq
 
       # Create a new QueueName instance.
       #
-      # @param normalized [#to_s] Normalized (without any namespaces or `queue:`
-      #   prefixes) queue name.
+      # @param normalized [#to_s] Normalized (without `queue:` prefixes) queue name.
       # @param identity [#to_s] Sidekiq process identity.
       def initialize(normalized, identity: Helper.identity)
         @normalized = -normalized.to_s

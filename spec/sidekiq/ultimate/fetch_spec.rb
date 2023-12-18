@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "sidekiq/component"
 require "sidekiq/ultimate/fetch"
 
 RSpec.describe Sidekiq::Ultimate::Fetch do
@@ -30,7 +31,7 @@ RSpec.describe Sidekiq::Ultimate::Fetch do
     describe "fetching", :redis => true do
       let(:queues) { %w[n r m] }
       let(:fetch) { described_class.new(:queues => queues) }
-      let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Util } }
+      let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Component } }
 
       before do
         Sidekiq.redis do |r|

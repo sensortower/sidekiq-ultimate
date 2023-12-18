@@ -1,11 +1,22 @@
 # frozen_string_literal: true
 
 require "sidekiq/ultimate/empty_queues"
-require "sidekiq/util"
+require "sidekiq"
+require "sidekiq/component"
 
 RSpec.describe Sidekiq::Ultimate::EmptyQueues do
   describe ".setup!" do
-    let(:sidekiq_util) { Object.new.tap { |o| o.extend Sidekiq::Util } }
+    let(:sidekiq_util)  do
+      klass = Class.new do
+        include Sidekiq::Component
+
+        attr_writer :config
+      end
+
+      util_instance = klass.new
+      util_instance.config = Sidekiq
+      util_instance
+    end
 
     it "subscribes to sidekiq startup and shutdown event to set up and shutdown queue refresh" do
       empty_queues_spy = instance_spy(described_class)
@@ -90,7 +101,7 @@ RSpec.describe Sidekiq::Ultimate::EmptyQueues do
           instance.instance_variable_set(:@queues, %w[john])
 
           Sidekiq.redis do |r|
-            Redlock::Client.new([r]).lock("#{Sidekiq.redis(&:namespace)}:ultimate:empty_queues_updater:lock", 30_000)
+            Redlock::Client.new([r]).lock("ultimate:empty_queues_updater:lock", 30_000)
 
             r.sadd("ultimate:empty_queues", %w[john ringo])
             r.sadd("queues", %w[john ringo paul])
