@@ -27,9 +27,7 @@ Gem::Specification.new do |spec| # rubocop:disable Gemspec/RequireMFA
   spec.add_runtime_dependency "redis-prescription", "~> 2.6"
   spec.add_runtime_dependency "redlock",            "~> 1.3"
   spec.add_runtime_dependency "sidekiq",            "~> 6.5.0"
-
-  # Version is not released, git ref is specified in the Gemfile
-  spec.add_runtime_dependency "sidekiq-throttled",  "0.18.0"
+  spec.add_runtime_dependency "sidekiq-throttled",  "~> 0.18.0"
 
   spec.add_development_dependency "bundler", "~> 2.0"
 
