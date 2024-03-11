@@ -96,10 +96,7 @@ module Sidekiq
           return if @requeued || @acked
 
           Sidekiq.redis do |redis|
-            REQUEUE.call(redis, {
-              :keys => [@queue.pending, @queue.inproc],
-              :argv => [command, @job]
-            })
+            REQUEUE.call(redis, :keys => [@queue.pending, @queue.inproc], :argv => [command, @job])
           end
 
           @requeued = true

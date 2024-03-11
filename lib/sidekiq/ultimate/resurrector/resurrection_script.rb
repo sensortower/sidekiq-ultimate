@@ -15,8 +15,8 @@ module Sidekiq
         RESURRECT_WITH_COUNTER = RedisPrescription.new(File.read("#{__dir__}/lua_scripts/resurrect_with_counter.lua"))
         private_constant :RESURRECT_WITH_COUNTER
 
-        def self.call(*args)
-          new.call(*args)
+        def self.call(redis, **options)
+          new.call(redis, **options)
         end
 
         def call(redis, keys:)
