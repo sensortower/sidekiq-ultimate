@@ -135,10 +135,10 @@ module Sidekiq
         # Delete empty inproc queues and clean up identity key from resurrection candidates (CommonConstants::MAIN_KEY)
         def cleanup(identity, inprocs)
           Sidekiq.redis do |redis|
-            result = SAFECLEAN.call(redis, {
+            result = SAFECLEAN.call(redis,
               :keys => [CommonConstants::MAIN_KEY, *inprocs],
               :argv => [identity]
-            })
+            )
 
             log(:debug) { "Safeclean of #{identity} ok=#{1 == result}" }
           end
