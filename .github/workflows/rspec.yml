@@ -54,5 +54,3 @@ jobs:
       - run: docker-compose up -d
       - name: Run specs and generate coverage report
         run: bundle exec rake spec
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
